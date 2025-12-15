@@ -146,7 +146,7 @@ export default function ProducersPage() {
                     <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Rechercher par nom, ID ou localisation..."
+                        placeholder="Rechercher par nom, ID ou localisation:-)"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full py-3 pl-10 pr-4 border border-gray-200 rounded-xl focus:ring-green-500 focus:border-green-500 transition-shadow"
