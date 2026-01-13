@@ -1,0 +1,238 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ENUMS ---
+
+enum Role {
+  USER      // Legacy/Default
+  BUYER     // New
+  PRODUCER
+  ADMIN
+  AGENT     // New
+}
+
+enum ProducerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum StockType {
+  INPUT   // Intrants (semences, engrais)
+  HARVEST // Récoltes prêtes
+  EQUIPMENT
+}
+
+enum OrderSource {
+  APP
+  WHATSAPP
+  VOICE_CALL
+}
+
+// --- UTILISATEURS & AUTH ---
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  phone         String?   @unique // Priorité au téléphone (Sahel)
+  
+  role          Role      @default(USER)
+
+  // Relations NextAuth
+  accounts      Account[]
+  sessions      Session[]
+  
+  // Relations Métier
+  producer      Producer?
+  orders        Order[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// --- STRUCTURE AGROBUSINESS ---
+
+model Producer {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  businessName  String?   // Nom de l'agrobusiness
+  status        ProducerStatus @default(PENDING)
+  
+  // Localisation Structurée (Sahel)
+  region        String?    // ex: Hauts-Bassins
+  province      String?    // ex: Houet
+  commune       String?    // ex: Bobo-Dioulasso
+  
+  // Relations
+  farms         Farm[]    // Un businessman peut avoir plusieurs sites
+  products      Product[] // Catalogue public
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Farm {
+  id            String    @id @default(cuid())
+  name          String    // ex: "Ferme Loumbila Nord"
+  location      String?
+  
+  // Paramètres Agronomiques
+  size          Float?    // Superficie en Hectares
+  soilType      String?   // Sablo-argileux, Limoneux...
+  waterSource   String?   // Forage, Pluie, Barrage...
+  
+  producerId    String
+  producer      Producer  @relation(fields: [producerId], references: [id])
+  
+  inventory     Stock[]   // Inventaire réel de la ferme
+  expenses      Expense[] // Suivi des coûts de production
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// --- GESTION DE L'INVENTAIRE (PROFESSIONNEL) ---
+
+model Stock {
+  id            String    @id @default(cuid())
+  farmId        String
+  farm          Farm      @relation(fields: [farmId], references: [id])
+  
+  itemName      String    // ex: "Engrais NPK" ou "Maïs Grain"
+  quantity      Float
+  unit          String    // kg, sac, litre
+  type          StockType @default(HARVEST)
+  
+  movements     StockMovement[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model StockMovement {
+  id            String    @id @default(cuid())
+  stockId       String
+  stock         Stock     @relation(fields: [stockId], references: [id])
+  
+  type          String    // IN (récolte/achat), OUT (vente/utilisation), WASTE (perte)
+  quantity      Float
+  reason        String?   // ex: "Vente via WhatsApp"
+  
+  createdAt     DateTime  @default(now())
+}
+
+// --- SUIVI FINANCIER ---
+
+model Expense {
+  id            String    @id @default(cuid())
+  farmId        String
+  farm          Farm      @relation(fields: [farmId], references: [id])
+  
+  label         String    // ex: "Main d'oeuvre récolte"
+  amount        Float
+  category      String    // LABOUR, FUEL, SEEDS, OTHER
+  date          DateTime  @default(now())
+}
+
+// --- CATALOGUE PUBLIC & VENTES ---
+
+model Product {
+  id            String    @id @default(cuid())
+  shortCode     String?   @unique // Pour WhatsApp (ex: MZ-001)
+  name          String    @default("Produit") // Nom du produit (ex: "Maïs blanc de Bama")
+  
+  categoryLabel String    // ex: "Maïs Jaune"
+  localNames    Json?     // { "moore": "Kamana", "dioula": "Kaba" }
+  description   String?
+  price         Float
+  unit          String    // kg, sac de 100kg, etc.
+  quantityForSale Float   @default(0) // Ce qui est affiché en ligne
+  
+  images        String[]
+  audioUrl      String?   // Description vocale
+  
+  producerId    String
+  producer      Producer  @relation(fields: [producerId], references: [id])
+  
+  orderItems    OrderItem[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// --- SYSTÈME DE COMMANDE (INTÉGRATION WHATSAPP) ---
+
+model Order {
+  id            String    @id @default(cuid())
+  buyerId       String
+  buyer         User      @relation(fields: [buyerId], references: [id])
+  
+  status        OrderStatus @default(PENDING)
+  source        OrderSource @default(APP)
+  
+  totalAmount   Float
+  whatsappId    String?   // Lien vers la conversation WhatsApp
+  
+  items         OrderItem[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model OrderItem {
+  id            String    @id @default(cuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id])
+  
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  
+  quantity      Float
+  priceAtSale   Float     // Historique du prix au moment de l'achat
+}

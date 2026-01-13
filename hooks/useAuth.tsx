@@ -1,138 +1,123 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { User, Role, AuthContextType } from '@/types/auth'; // Utilisation des types User et Role
-import { loginUser, registerUser, storeAuthToken } from '@/services/auth.service'; // Utilisation du service API
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
+import { registerUser, loginUser } from '@/services/auth.service'; 
+import type { Role } from '@prisma/client';
 
-// Clés de stockage local pour la persistance de l'état
-const USER_STORAGE_KEY = 'agriconnect_user';
-const TOKEN_STORAGE_KEY = 'agriconnect_token'; // Utilisé pour stocker le token JWT
+interface AuthContextType {
+  user: any;
+  userRole: Role | undefined;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isActionLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<any>;
+  register: (data: { email: string; password: string; role: Role; name: string; adminSecret?: string }) => Promise<any>;
+  logout: () => void;
+}
 
-// --- CONTEXTE D'AUTHENTIFICATION ---
-// On utilise une valeur par défaut 'undefined' pour détecter si le hook est mal utilisé
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// --- FOURNISSEUR DE CONTEXTE (AuthProvider) ---
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isLoading, setIsLoading] = useState(true); 
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<Role | undefined>(undefined);
+  const router = useRouter();
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const checkSession = () => {
+      const savedRole = Cookies.get('user-role') as Role | undefined;
+      const savedId = Cookies.get('user-id');
+      const savedName = Cookies.get('user-name');
 
-    /**
-     * 1. Initialisation : Chargement de l'utilisateur depuis le stockage local
-     * (Simule la re-connexion après un rafraîchissement de page)
-     */
-    useEffect(() => {
-        const storedUser = localStorage.getItem(USER_STORAGE_KEY);
-        // Le token est stocké séparément, mais on ne le lit pas ici directement pour des raisons de simplicité de mock
-        
-        if (storedUser) {
-            try {
-                setUser(JSON.parse(storedUser));
-            } catch (e) {
-                console.error("Failed parsing stored user:", e);
-                // Si la donnée est corrompue, on efface et on force la déconnexion
-                localStorage.removeItem(USER_STORAGE_KEY);
-            }
-        }
-        setIsLoading(false);
-    }, []);
-
-    /**
-     * 2. Connexion : Appel au service API
-     */
-    const login = useCallback(async (email: string, password: string) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const { user: loggedInUser, token } = await loginUser(email, password);
-            
-            // Mise à jour de l'état et du stockage local
-            setUser(loggedInUser);
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(loggedInUser));
-            storeAuthToken(token);
-            
-            // Redirection conditionnelle basée sur le rôle
-            if (loggedInUser.role === 'admin') router.push('/admin');
-            else if (loggedInUser.role === 'producer') router.push('/producer/dashboard');
-            else router.push('/market'); // Acheteur (buyer)
-
-        } catch (err) {
-            setError((err as Error).message || "Erreur de connexion.");
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [router]);
-    
-    /**
-     * 3. Enregistrement : Appel au service API
-     */
-    const register = useCallback(async (email: string, password: string, role: Role, name: string) => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const { user: registeredUser, token } = await registerUser(email, password, role, name);
-
-            setUser(registeredUser);
-            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(registeredUser));
-            storeAuthToken(token); 
-            
-            alert(`Compte ${role} créé. Veuillez vérifier votre email !`);
-            router.push('/login'); 
-
-        } catch (err) {
-            setError((err as Error).message || "Erreur d'enregistrement.");
-            setUser(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [router]);
-
-
-    /**
-     * 4. Déconnexion : Nettoyage de l'état
-     */
-    const logout = useCallback(() => {
-        setIsLoading(true);
-        setTimeout(() => { 
-            setUser(null);
-            localStorage.removeItem(USER_STORAGE_KEY);
-            localStorage.removeItem(TOKEN_STORAGE_KEY);
-            setIsLoading(false);
-            router.push('/login');
-        }, 300);
-    }, [router]);
-
-    // Valeurs exposées par le contexte
-    const contextValue: AuthContextType = {
-        user,
-        isAuthenticated: !!user,
-        userRole: user ? user.role : 'guest',
-        login,
-        register,
-        logout,
-        isLoading,
-        error
+      if (savedRole && savedId) {
+        setUserRole(savedRole);
+        setUser({ id: savedId, name: savedName, role: savedRole });
+      }
+      setIsLoading(false);
     };
+    checkSession();
+  }, []);
 
-    return (
-        <AuthContext.Provider value={contextValue}>
-            {children}
-        </AuthContext.Provider>
-    );
-};
+  const login = async (email: string, password: string) => {
+    setIsActionLoading(true);
+    setError(null);
+    try {
+      const result = await loginUser({ email, password });
+      if (result.success && result.user) {
+        setUser(result.user);
+        setUserRole(result.user.role);
+        // On stocke l'ID et le Rôle
+        Cookies.set('user-role', result.user.role, { expires: 7 });
+        Cookies.set('user-id', result.user.id, { expires: 7 });
+        Cookies.set('user-name', result.user.name || '', { expires: 7 });
+        
+        return result;
+      } else {
+        setError(result.error || "Identifiants incorrects");
+        return result;
+      }
+    } catch (err) { 
+      setError("Erreur de connexion"); 
+      return { success: false, error: "Erreur de connexion" };
+    } 
+    finally { setIsActionLoading(false); }
+  };
 
-// --- HOOK UTILISATEUR (useAuth) ---
+  const logout = () => {
+    Cookies.remove('user-role');
+    Cookies.remove('user-id');
+    Cookies.remove('user-name');
+    setUser(null);
+    setUserRole(undefined);
+    router.push('/login');
+  };
 
-export const useAuth = (): AuthContextType => {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        // Alerte si le hook est appelé en dehors du Provider (erreur de développeur)
-        throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
-    }
-    return context;
+  const register = async (data: { email: string; password: string; role: Role; name: string; adminSecret?: string }) => {
+    setIsActionLoading(true);
+    setError(null);
+    try {
+      const result = await registerUser(data);
+      if (result.success && result.user) {
+        // Auto-login after registration
+        setUser(result.user);
+        setUserRole(result.user.role);
+        Cookies.set('user-role', result.user.role, { expires: 7 });
+        Cookies.set('user-id', result.user.id, { expires: 7 });
+        Cookies.set('user-name', result.user.name || '', { expires: 7 });
+        
+        // Redirection handled by the component or here
+        // The user asked to redirect after registering succeed.
+        // We can do it here or let the component handle it.
+        // Let's return the result so the component can show the success message and redirect.
+        return result; 
+      } else {
+        setError(result.error || "Erreur lors de l'inscription");
+        return result;
+      }
+    } catch (err) { 
+      setError("Erreur technique lors de l'inscription"); 
+      return { success: false, error: "Erreur technique" };
+    } 
+    finally { setIsActionLoading(false); }
+  };
+
+  return (
+    <AuthContext.Provider value={{ 
+      user, userRole, isAuthenticated: !!userRole, 
+      isLoading, isActionLoading, error, login, register, logout 
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 };

@@ -1,125 +1,100 @@
 import React from 'react';
 import Link from 'next/link';
 import { getProductById } from '@/services/catalogue.service';
-import { Product } from '@/types/market'; // Attention: utilise ton type standardisé
-import ProductClientView from './ProductView'; // Ton composant vue client
+import { Product as CatalogueProduct } from '@/types/catalogue';
+import { Product } from '@/types/market';
+import ProductClientView from './ProductView';
+import { AlertTriangle, ArrowLeft, LifeBuoy } from 'lucide-react';
 
-// --- THEME ---
 const THEME = {
-    ocre: '#A63C06',
-    sand: '#F9F9F7',
-    textMain: '#2D2D2D',
-    textSub: '#5D4037',
-    border: '2px solid #E0E0E0',
-    fontHead: 'Oswald, sans-serif',
+    ocre: '#E65100',
+    sand: '#FDFCFB',
+    surface: '#FFFFFF',
+    textMain: '#2D3436',
+    textSub: '#7F8C8D',
+    border: '#EEEAE5',
 };
 
-interface ProductDetailPageProps {
-    params: Promise<{
-        id: string;
-    }>;
+function mapCatalogueProductToMarketProduct(catalogueProduct: CatalogueProduct): Product {
+    return {
+        ...catalogueProduct,
+        // Map the string category to the ProductCategory type - adjust based on your actual enum/type
+        category: catalogueProduct.category as any,
+    };
 }
 
-export default async function ProductDetailPage(props: ProductDetailPageProps) {
-    const params = await props.params;
-    const id = params.id;
+interface ProductDetailPageProps {
+    params: Promise<{ id: string }>; 
+}
 
-    let product: Product | undefined | null = null;
-    let error: string | null = null;
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+    // 1. Extraction de l'ID (Next.js 15)
+    const { id } = await params;
+
+    let product: Product | null = null;
+    let errorMessage: string | null = null;
 
     try {
-        product = await getProductById(id);
-        if (!product) {
-            error = 'Lot non trouvé.';
+        // 2. Récupération des données via le service
+        // Le service gère déjà l'URL absolue pour le serveur
+        const catalogueProduct = await getProductById(id);
+        if (catalogueProduct) {
+            product = mapCatalogueProductToMarketProduct(catalogueProduct);
         }
-    } catch (err: any) {
-        error = 'Impossible de synchroniser les données du stock.';
+        
+        if (!product) {
+            errorMessage = 'Ce lot de production n’est plus disponible ou n’existe pas.';
+        }
+    } catch (err) {
+        console.error("Erreur de récupération:", err);
+        errorMessage = 'Erreur lors de la synchronisation avec le réservoir de données.';
     }
 
-    // --- GESTION "STOCK INTROUVABLE" (Style Résilient) ---
-    if (error || !product) {
+    // --- ÉCRAN D'ERREUR ---
+    if (errorMessage || !product) {
         return (
             <div style={{ 
-                minHeight: '80vh', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                textAlign: 'center',
-                padding: '20px',
-                backgroundColor: THEME.sand,
-                fontFamily: 'Barlow, sans-serif'
+                minHeight: '100vh', display: 'flex', alignItems: 'center', 
+                justifyContent: 'center', padding: '24px', backgroundColor: THEME.sand 
             }}>
-                
-                {/* Bloc central rigide */}
                 <div style={{ 
-                    maxWidth: '600px', 
-                    padding: '40px', 
-                    border: `4px solid ${THEME.ocre}`, // Cadre épais couleur terre
-                    backgroundColor: 'white',
-                    boxShadow: '10px 10px 0 rgba(0,0,0,0.1)' // Ombre dure
+                    maxWidth: '500px', width: '100%', padding: '48px 40px', 
+                    borderRadius: '32px', backgroundColor: THEME.surface, textAlign: 'center',
+                    boxShadow: '0 20px 50px rgba(0,0,0,0.04)', border: `1px solid ${THEME.border}`,
+                    fontFamily: 'inherit'
                 }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '10px' }}>📉</div>
-
-                    <h1 style={{ 
-                        fontFamily: THEME.fontHead, 
-                        fontSize: '2rem', 
-                        color: THEME.textMain, 
-                        margin: '0 0 20px 0',
-                        textTransform: 'uppercase'
-                    }}>
-                        Lot non localisé
-                    </h1>
-                    
                     <div style={{ 
-                        backgroundColor: '#FFF3E0', 
-                        padding: '15px', 
-                        borderLeft: `4px solid ${THEME.ocre}`,
-                        marginBottom: '30px',
-                        textAlign: 'left'
+                        width: '80px', height: '80px', backgroundColor: '#FFF3E0', 
+                        borderRadius: '24px', display: 'flex', alignItems: 'center', 
+                        justifyContent: 'center', margin: '0 auto 24px', color: THEME.ocre
                     }}>
-                        <p style={{ margin: 0, color: THEME.textSub, fontWeight: 'bold' }}>
-                            Détail technique (ID: {id})
-                        </p>
-                        <p style={{ margin: '5px 0 0 0', color: '#444' }}>
-                            Ce stock a peut-être été entièrement vendu, retiré par la coopérative, ou le lien est expiré.
-                        </p>
+                        <AlertTriangle size={40} />
                     </div>
 
-                    {/* Boutons d'action "Industriels" */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                        <Link 
-                            href="/catalogue" 
-                            style={{
-                                display: 'block',
-                                padding: '15px 30px',
-                                backgroundColor: THEME.ocre,
-                                color: 'white',
-                                textDecoration: 'none',
-                                fontWeight: '900',
-                                textTransform: 'uppercase',
-                                letterSpacing: '1px',
-                                border: 'none',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            ← Retour aux Arrivages
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 900, color: THEME.textMain, margin: '0 0 16px 0', letterSpacing: '-0.02em' }}>
+                        Stock introuvable
+                    </h1>
+                    
+                    <p style={{ color: THEME.textSub, lineHeight: '1.6', marginBottom: '32px' }}>
+                        L'identifiant <span style={{ color: THEME.textMain, fontWeight: '700' }}>{id.slice(0, 8)}</span> ne correspond à aucun stock actif. 
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <Link href="/catalogue" style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                            padding: '18px', backgroundColor: THEME.ocre, color: 'white',
+                            textDecoration: 'none', fontWeight: '800', borderRadius: '16px', fontSize: '0.95rem'
+                        }}>
+                            <ArrowLeft size={18} /> Retour au catalogue
                         </Link>
 
-                        <Link 
-                            href="/" 
-                            style={{
-                                display: 'block',
-                                padding: '15px 30px',
-                                backgroundColor: 'transparent',
-                                color: THEME.textMain,
-                                textDecoration: 'none',
-                                fontWeight: 'bold',
-                                border: `2px solid ${THEME.textMain}`,
-                                textTransform: 'uppercase'
-                            }}
-                        >
-                            Contacter le support
+                        <Link href="/contact" style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                            padding: '16px', backgroundColor: 'transparent', color: THEME.textMain,
+                            textDecoration: 'none', fontWeight: '700', borderRadius: '16px',
+                            border: `1px solid ${THEME.border}`, fontSize: '0.9rem'
+                        }}>
+                            <LifeBuoy size={18} /> Aide technique
                         </Link>
                     </div>
                 </div>
@@ -127,6 +102,11 @@ export default async function ProductDetailPage(props: ProductDetailPageProps) {
         );
     }
 
-    // Si tout va bien, on passe le relais au composant client
-    return <ProductClientView product={product} />;
+    // --- VUE PRODUIT ---
+    return (
+        <main style={{ backgroundColor: THEME.sand, minHeight: '100vh' }}>
+            {/* On passe directement le produit au composant client */}
+            <ProductClientView product={product} />
+        </main>
+    );
 }

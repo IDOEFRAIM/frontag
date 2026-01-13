@@ -1,90 +1,141 @@
-import { User, Role } from '@/types/auth';
+'use server';
 
-// La BASE_URL pointera vers l'API Gateway ou directement vers le microservice Utilisateurs
-const AUTH_API_URL = process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:3002/api/v1/auth';
+import { prisma } from "@/lib/prisma"; 
+import bcrypt from "bcryptjs";
+import { cookies } from "next/headers";
+import { Role } from "@prisma/client";
 
 /**
- * Simule la connexion d'un utilisateur au backend.
- * En production, cela ferait un appel POST à /login
+ * INSCRIPTION
  */
-export const loginUser = async (email: string, password: string): Promise<{ user: User, token: string }> => {
-    console.log(`[API CALL] Attempting login for: ${email}`);
-    
-    // 1. Simuler l'appel API
+export async function registerUser(data: { 
+    email: string; 
+    password: string; 
+    name: string; 
+    role: Role; 
+    phone?: string;
+    adminSecret?: string; // Ajout du champ secret
+}) {
     try {
-        // Simulation d'un délai réseau
-        await new Promise(resolve => setTimeout(resolve, 800));
+        const { email, password, name, role, phone, adminSecret } = data;
 
-        // 2. Logique de Mocking
-        let role: Role;
-        if (email.includes('prod')) {
-            role = 'producer';
-        } else if (email.includes('admin')) {
-            role = 'admin';
-        } else {
-            role = 'buyer';
+        // 1. Sécurité Admin : Vérification du code secret
+        if (role === 'ADMIN') {
+            const MASTER_ADMIN_SECRET = "ADMIN123"; // 👈 CHANGE CE CODE POUR TES 3 COMPTES
+            if (adminSecret !== MASTER_ADMIN_SECRET) {
+                return { success: false, error: "Code d'autorisation Admin incorrect." };
+            }
         }
 
-        const mockUser: User = {
-            id: 'u-' + Math.random().toString(36).substring(2, 9),
-            email: email,
-            role: role,
-            isVerified: true,
-            // name n'est pas requis ici pour la connexion mockée
-        };
-
-        const mockToken = `jwt-token-for-${role}-${mockUser.id}`;
-        
-        console.log(`Login successful. User Role: ${role}`);
-        return { user: mockUser, token: mockToken };
-
-    } catch (error) {
-        console.error("Login Error:", error);
-        throw new Error("Identifiants incorrects ou erreur réseau.");
-    }
-};
-
-/**
- * En production, vous ajouteriez une fonction pour stocker le token
- * (ex: dans les cookies sécurisés ou le localStorage)
- */
-export const storeAuthToken = (token: string) => {
-    // Dans un projet réel Next.js, on utiliserait un cookie sécurisé (HttpOnly)
-    localStorage.setItem('agriconnect_token', token); 
-};
-
-/**
- * Simule l'enregistrement d'un nouvel utilisateur au backend.
- * En production, cela ferait un appel POST à /register
- */
-export const registerUser = async (email: string, password: string, role: Role, name: string): Promise<{ user: User, token: string }> => {
-    console.log(`[API CALL] Attempting registration for: ${email} with role: ${role}`);
-    
-    // 1. Simuler l'appel API (POST /register)
-    try {
-        // Simulation d'un délai réseau
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // 2. Logique de Mocking (simuler la création)
-        if (email.includes('error')) {
-            throw new Error("L'email est déjà utilisé.");
+        // 2. Vérification d'existence
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return { success: false, error: "Cet email est déjà utilisé." };
         }
 
-        const mockUser: User = {
-            id: 'u-' + Math.random().toString(36).substring(2, 9),
-            email: email,
-            role: role,
-            isVerified: false,
-            name: name, // Ajout du nom pour le mock
+        // 3. Hashage du mot de passe
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // 4. Création atomique
+        const newUser = await prisma.user.create({
+            data: {
+                email,
+                password: hashedPassword,
+                name,
+                role: role,
+                phone: phone || undefined, // Use phone if provided
+                // On crée le profil producteur UNIQUEMENT si le rôle est PRODUCER
+                ...(role === 'PRODUCER' ? {
+                    producer: {
+                        create: {
+                            businessName: name || "Nouveau Producteur",
+                            status: "PENDING",
+                            region: "À préciser",
+                            province: "À préciser",
+                            commune: "À préciser"
+                        }
+                    }
+                } : {})
+            }
+        });
+
+        // 5. Gestion du Cookie
+        const cookieStore = await cookies();
+        cookieStore.set("user-role", newUser.role, { 
+            httpOnly: false, 
+            secure: process.env.NODE_ENV === "production",
+            path: "/",
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24 * 7 // 7 jours
+        });
+
+        return { success: true, user: { id: newUser.id, role: newUser.role } };
+
+    } catch (error: any) {
+        console.error("❌ Erreur Inscription Action:", error);
+        
+        if (error.code === 'P2002') {
+            return { success: false, error: "L'email ou le numéro de téléphone est déjà utilisé." };
+        }
+        return { success: false, error: "Erreur lors de la création du compte." };
+    }
+}
+
+/**
+ * CONNEXION
+ */
+export async function loginUser(credentials: any) {
+    try {
+        const { email, password } = credentials;
+        
+        const user = await prisma.user.findUnique({ 
+            where: { email },
+            include: { producer: true } 
+        });
+
+        if (!user || !user.password) {
+            return { success: false, error: "Identifiants invalides" };
+        }
+
+        const isValid = await bcrypt.compare(password, user.password);
+        if (!isValid) {
+            return { success: false, error: "Identifiants invalides" };
+        }
+
+        const cookieStore = await cookies();
+        cookieStore.set("user-role", user.role, { 
+            httpOnly: false,
+            secure: process.env.NODE_ENV === "production",
+            path: "/",
+            sameSite: "lax",
+            maxAge: 60 * 60 * 24 * 7
+        });
+
+        return { 
+            success: true, 
+            user: { 
+                id: user.id, 
+                role: user.role,
+                name: user.name,
+                producerStatus: user.producer?.status || null 
+            } 
         };
 
-        const mockToken = `jwt-token-for-${role}-${mockUser.id}`;
-        
-        console.log(`Registration successful. User Role: ${role}`);
-        return { user: mockUser, token: mockToken };
-
     } catch (error) {
-        console.error("Registration Error:", error);
-        throw new Error((error as Error).message || "Échec de l'enregistrement. Veuillez réessayer.");
+        console.error("❌ Erreur Login Action:", error);
+        return { success: false, error: "Une erreur est survenue lors de la connexion" };
     }
-};
+}
+
+/**
+ * DÉCONNEXION
+ */
+export async function logoutUser() {
+    try {
+        const cookieStore = await cookies();
+        cookieStore.delete("user-role");
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: "Erreur lors de la déconnexion" };
+    }
+}

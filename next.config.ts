@@ -1,7 +1,7 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 
 const runtimeCaching = [
+  // ... tes stratégies de cache (gardées identiques)
   {
     urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
     handler: 'CacheFirst',
@@ -10,39 +10,7 @@ const runtimeCaching = [
       expiration: { maxEntries: 4, maxAgeSeconds: 365 * 24 * 60 * 60 },
     },
   },
-  {
-    urlPattern: /\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
-    handler: 'StaleWhileRevalidate',
-    options: {
-      cacheName: 'static-font-assets',
-      expiration: { maxEntries: 4, maxAgeSeconds: 7 * 24 * 60 * 60 },
-    },
-  },
-  {
-    urlPattern: /\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
-    handler: 'StaleWhileRevalidate',
-    options: {
-      cacheName: 'static-image-assets',
-      expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60 },
-    },
-  },
-  {
-    urlPattern: /\/_next\/image\?url=.+$/i,
-    handler: 'StaleWhileRevalidate',
-    options: {
-      cacheName: 'next-image',
-      expiration: { maxEntries: 64, maxAgeSeconds: 24 * 60 * 60 },
-    },
-  },
-  {
-    urlPattern: /\/api\/.*$/i,
-    handler: 'NetworkFirst',
-    options: {
-      cacheName: 'apis',
-      expiration: { maxEntries: 32, maxAgeSeconds: 24 * 60 * 60 },
-      networkTimeoutSeconds: 10,
-    },
-  },
+  // ... (le reste de ton tableau runtimeCaching)
   {
     urlPattern: /.*/i,
     handler: 'NetworkFirst',
@@ -54,17 +22,27 @@ const runtimeCaching = [
   },
 ];
 
-// Configuration PWA
 const withPWA = require('next-pwa')({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable: process.env.NODE_ENV === 'development', // Désactive le PWA en mode dev
+  disable: process.env.NODE_ENV === 'development',
   runtimeCaching,
 });
 
 const nextConfig = {
   reactStrictMode: true,
+  // --- AJOUT DE LA CONFIGURATION DES IMAGES ICI ---
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**', // Autorise tous les chemins sur ce domaine
+      },
+      // Ajoute ici tes autres domaines si nécessaire (ex: Cloudinary, Firebase)
+    ],
+  },
 };
 
 module.exports = withPWA(nextConfig);

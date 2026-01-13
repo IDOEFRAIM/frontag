@@ -24,7 +24,7 @@ export default function ProducerDashboard() {
                 <div style={cardStyleProducer}>
                     <h3 style={cardTitleStyle}>🛍️ Nouvelles Commandes</h3>
                     <p style={cardValueStyle}>{mockProducerData.newOrders}</p>
-                    <a href="/orders" style={linkStyleProducer}>Gérer les expéditions</a>
+                    <a href="/sales" style={linkStyleProducer}>Gérer les expéditions</a>
                 </div>
 
                 {/* Carte 2 : Valeur du Stock */}

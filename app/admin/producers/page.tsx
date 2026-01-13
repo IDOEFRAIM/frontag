@@ -3,219 +3,161 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { 
-    FaUsers, FaUserCheck, FaUserTimes, FaSearch, 
-    FaEye, FaMapMarkerAlt, FaPhone, FaChevronRight,
-    FaArrowUp, FaArrowDown, FaSort
+    FaUsers, FaSearch, FaMapMarkerAlt, FaChevronRight, FaCheckCircle, FaClock, FaExclamationCircle, FaFilter
 } from 'react-icons/fa';
 
-// --- TYPES ---
-type ProducerStatus = 'active' | 'pending' | 'suspended';
-
+// --- TYPES & MOCK ---
+type ProducerStatus = 'all' | 'active' | 'pending' | 'suspended';
 type Producer = {
-    id: string;
-    name: string;
-    location: string;
-    email: string;
-    phone: string;
-    status: ProducerStatus;
-    productsCount: number;
-    totalOrders: number;
-    registrationDate: string;
+    id: string; name: string; location: string; email: string; phone: string;
+    status: Exclude<ProducerStatus, 'all'>; productsCount: number; totalOrders: number; registrationDate: string;
 };
 
-// --- DONNÉES FICTIVES ---
 const mockProducers: Producer[] = [
-    {
-        id: 'PROD-001',
-        name: 'Ferme Bio Alpha',
-        location: 'Thiès, Zone Agricole',
-        email: 'alpha@ferme.com',
-        phone: '+221 77 987 65 43',
-        status: 'active',
-        productsCount: 15,
-        totalOrders: 120,
-        registrationDate: '12/01/2024',
-    },
-    {
-        id: 'PROD-002',
-        name: 'Coopérative Niayes',
-        location: 'Dakar, Grande Niaye',
-        email: 'niayes@coop.org',
-        phone: '+221 70 123 45 67',
-        status: 'pending',
-        productsCount: 0,
-        totalOrders: 0,
-        registrationDate: '25/11/2025',
-    },
-    {
-        id: 'PROD-003',
-        name: 'Jardin de Mariama',
-        location: 'Mbour, Quartier Sud',
-        email: 'mariama@jardin.net',
-        phone: '+221 77 555 55 55',
-        status: 'active',
-        productsCount: 8,
-        totalOrders: 55,
-        registrationDate: '01/08/2025',
-    },
-    {
-        id: 'PROD-004',
-        name: 'AgriTech X',
-        location: 'Rufisque, Pépinière',
-        email: 'agritechx@prod.com',
-        phone: '+221 77 999 99 99',
-        status: 'suspended',
-        productsCount: 2,
-        totalOrders: 1,
-        registrationDate: '15/03/2024',
-    },
+    { id: 'PROD-001', name: 'Ferme Bio Alpha', location: 'Thiès, Zone Agricole', email: 'alpha@ferme.com', phone: '+221 77 987 65 43', status: 'active', productsCount: 15, totalOrders: 120, registrationDate: '12/01/2024' },
+    { id: 'PROD-002', name: 'Coopérative Niayes', location: 'Dakar, Grande Niaye', email: 'niayes@coop.org', phone: '+221 70 123 45 67', status: 'pending', productsCount: 0, totalOrders: 0, registrationDate: '25/11/2025' },
+    { id: 'PROD-003', name: 'Maraîcher de Mbour', location: 'Mbour, Côte', email: 'mbour@prod.sn', phone: '+221 76 543 21 00', status: 'suspended', productsCount: 5, totalOrders: 12, registrationDate: '05/05/2024' },
 ];
-
-// --- HELPERS ---
-
-const getStatusBadge = (status: ProducerStatus) => {
-    switch (status) {
-        case 'active':
-            return <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1"><FaUserCheck /> Actif</span>;
-        case 'pending':
-            return <span className="bg-yellow-100 text-yellow-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1"><FaEye /> En Attente</span>;
-        case 'suspended':
-            return <span className="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1"><FaUserTimes /> Suspendu</span>;
-    }
-};
-
-// --- COMPOSANT DE LA PAGE ---
 
 export default function ProducersPage() {
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortBy, setSortBy] = useState<'name' | 'orders' | 'date'>('date');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const [statusFilter, setStatusFilter] = useState<ProducerStatus>('all');
 
-    // 1. Logique de Filtrage
-    const filteredProducers = mockProducers.filter(producer =>
-        producer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        producer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        producer.location.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    // 2. Logique de Tri
-    const sortedProducers = [...filteredProducers].sort((a, b) => {
-        let comparison = 0;
-
-        if (sortBy === 'name') {
-            comparison = a.name.localeCompare(b.name);
-        } else if (sortBy === 'orders') {
-            comparison = a.totalOrders - b.totalOrders;
-        } else if (sortBy === 'date') {
-            // Conversion simple de date pour le tri
-            const dateA = new Date(a.registrationDate.split('/').reverse().join('-')).getTime();
-            const dateB = new Date(b.registrationDate.split('/').reverse().join('-')).getTime();
-            comparison = dateA - dateB;
-        }
-
-        return sortOrder === 'asc' ? comparison : comparison * -1;
+    // --- LOGIQUE DE FILTRE COMBINÉE ---
+    const filtered = mockProducers.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                             p.location.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+        
+        return matchesSearch && matchesStatus;
     });
 
-    // 3. Gestion du changement de tri
-    const handleSortChange = (key: 'name' | 'orders' | 'date') => {
-        if (sortBy === key) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortBy(key);
-            setSortOrder('desc'); // Par défaut, trier les noms en A-Z, les chiffres en plus grand d'abord.
-        }
-    };
+    return (
+        <div className="min-h-screen bg-[#FDFCFB] pb-20">
+            <header className="bg-white border-b border-orange-100/50 px-6 py-8 sticky top-16 z-30 shadow-sm">
+                <div className="max-w-5xl mx-auto space-y-6">
+                    {/* TITRE */}
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600">
+                            <FaUsers size={22} />
+                        </div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+                            Producteurs <span className="text-emerald-500 font-medium">& Partenaires</span>
+                        </h1>
+                    </div>
 
-    const SortIcon = ({ keyName }: { keyName: 'name' | 'orders' | 'date' }) => {
-        if (sortBy !== keyName) return <FaSort className="text-gray-400 text-xs" />;
-        return sortOrder === 'asc' ? <FaArrowUp className="text-green-600 text-xs" /> : <FaArrowDown className="text-green-600 text-xs" />;
+                    <div className="flex flex-col md:flex-row gap-4">
+                        {/* BARRE DE RECHERCHE */}
+                        <div className="relative group flex-1">
+                            <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Rechercher une exploitation..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-slate-50 border-none rounded-2xl py-4 pl-12 pr-4 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium text-slate-700"
+                            />
+                        </div>
+
+                        {/* FILTRES DE STATUT */}
+                        <div className="flex items-center bg-slate-50 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
+                            <FilterButton active={statusFilter === 'all'} label="Tous" onClick={() => setStatusFilter('all')} />
+                            <FilterButton active={statusFilter === 'active'} label="Actifs" color="emerald" onClick={() => setStatusFilter('active')} />
+                            <FilterButton active={statusFilter === 'pending'} label="Attente" color="amber" onClick={() => setStatusFilter('pending')} />
+                            <FilterButton active={statusFilter === 'suspended'} label="Suspendus" color="red" onClick={() => setStatusFilter('suspended')} />
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main className="max-w-5xl mx-auto p-6">
+                {/* COMPTEUR DE RÉSULTATS */}
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6">
+                    {filtered.length} Résultat{filtered.length > 1 ? 's' : ''} trouvé{filtered.length > 1 ? 's' : ''}
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {filtered.map((producer) => (
+                        <Link 
+                            key={producer.id} 
+                            href={`/admin/producers/${producer.id}`}
+                            className="group bg-white rounded-[2.5rem] p-8 border border-orange-50/50 shadow-sm hover:shadow-xl transition-all"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="w-16 h-16 bg-[#F9F7F2] rounded-2xl flex items-center justify-center text-3xl group-hover:bg-emerald-500 group-hover:text-white transition-colors uppercase font-bold text-slate-400">
+                                    {producer.name.charAt(0)}
+                                </div>
+                                <StatusBadge status={producer.status} />
+                            </div>
+
+                            <div className="mb-8">
+                                <h3 className="text-2xl font-black text-slate-900 mb-2">{producer.name}</h3>
+                                <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                                    <FaMapMarkerAlt /> {producer.location}
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                                <div className="flex gap-6">
+                                    <div>
+                                        <p className="text-xl font-black text-slate-900">{producer.productsCount}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Produits</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xl font-black text-slate-900">{producer.totalOrders}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ventes</p>
+                                    </div>
+                                </div>
+                                <FaChevronRight className="text-slate-200 group-hover:text-emerald-500 transition-colors" />
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+
+                {/* EMPTY STATE */}
+                {filtered.length === 0 && (
+                    <div className="text-center py-20 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                        <div className="text-slate-200 text-5xl mb-4 flex justify-center"><FaSearch /></div>
+                        <p className="text-slate-500 font-bold">Aucun producteur ne correspond à vos critères.</p>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}
+
+// --- SOUS-COMPOSANTS ---
+
+function FilterButton({ active, label, onClick, color = "slate" }: { active: boolean, label: string, onClick: () => void, color?: string }) {
+    const activeStyles: any = {
+        emerald: "bg-emerald-500 text-white shadow-lg shadow-emerald-100",
+        amber: "bg-amber-500 text-white shadow-lg shadow-amber-100",
+        red: "bg-red-500 text-white shadow-lg shadow-red-100",
+        slate: "bg-slate-900 text-white shadow-lg shadow-slate-100"
     };
 
     return (
-        <div className="bg-gray-50 pb-6">
-            
-            {/* 1. HEADER */}
-            <div className="bg-white p-4 sticky top-16 md:top-0 z-10 shadow-sm border-b border-gray-100">
-                <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                    <FaUsers className="text-green-700" /> Gestion des Producteurs
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">Total: {mockProducers.length} comptes</p>
-                
-                {/* Barre de Recherche */}
-                <div className="relative mt-4">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Rechercher par nom, ID ou localisation:-)"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 border border-gray-200 rounded-xl focus:ring-green-500 focus:border-green-500 transition-shadow"
-                    />
-                </div>
-            </div>
+        <button 
+            onClick={onClick}
+            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                active ? activeStyles[color] : "text-slate-400 hover:text-slate-600"
+            }`}
+        >
+            {label}
+        </button>
+    );
+}
 
-            <div className="p-4 space-y-6">
-
-                {/* 2. BARRE DE TRI (Mobile - Affiché en haut de la liste) */}
-                <div className="flex justify-around bg-white p-3 rounded-xl shadow-sm text-xs font-medium text-gray-600">
-                    <button onClick={() => handleSortChange('name')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                        Nom <SortIcon keyName="name" />
-                    </button>
-                    <button onClick={() => handleSortChange('orders')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                        Commandes <SortIcon keyName="orders" />
-                    </button>
-                    <button onClick={() => handleSortChange('date')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                        Inscription <SortIcon keyName="date" />
-                    </button>
-                </div>
-
-                {/* 3. LISTE DES PRODUCTEURS */}
-                <h2 className="text-lg font-bold text-gray-800">
-                    Résultats ({sortedProducers.length})
-                </h2>
-
-                <div className="space-y-4">
-                    {sortedProducers.length === 0 ? (
-                        <div className="text-center py-10 text-gray-500">
-                            <p>Aucun producteur trouvé pour "{searchTerm}".</p>
-                        </div>
-                    ) : (
-                        sortedProducers.map((producer) => (
-                            // Idéalement, ceci devrait naviguer vers /admin/producers/[producerId]
-                            <Link 
-                                key={producer.id} 
-                                href={`/admin/producers/${producer.id}`}
-                                className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all hover:shadow-md active:scale-[0.99]"
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-lg font-black text-gray-900">{producer.name}</h3>
-                                    {getStatusBadge(producer.status)}
-                                </div>
-                                
-                                <p className="text-xs text-gray-500 flex items-center gap-1 mb-2">
-                                    <FaMapMarkerAlt className="text-gray-400" /> {producer.location}
-                                </p>
-                                <p className="text-xs text-gray-500 flex items-center gap-1 mb-3">
-                                    <FaPhone className="text-gray-400" /> {producer.phone}
-                                </p>
-
-                                <div className="flex justify-between items-center text-sm pt-3 border-t border-gray-100">
-                                    <div>
-                                        <p className="text-gray-800 font-bold">{producer.productsCount}</p>
-                                        <span className="text-xs text-gray-500">Produits en stock</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-800 font-bold">{producer.totalOrders}</p>
-                                        <span className="text-xs text-gray-500">Commandes gérées</span>
-                                    </div>
-                                    <FaChevronRight className="text-gray-300" />
-                                </div>
-                            </Link>
-                        ))
-                    )}
-                </div>
-
-            </div>
-        </div>
+function StatusBadge({ status }: { status: string }) {
+    const config: any = {
+        active: { bg: 'bg-emerald-50', text: 'text-emerald-600', icon: <FaCheckCircle /> },
+        pending: { bg: 'bg-amber-50', text: 'text-amber-600', icon: <FaClock /> },
+        suspended: { bg: 'bg-red-50', text: 'text-red-600', icon: <FaExclamationCircle /> },
+    };
+    const { bg, text, icon } = config[status] || config.pending;
+    return (
+        <span className={`${bg} ${text} text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl flex items-center gap-2 border border-current/10`}>
+            {icon} {status}
+        </span>
     );
 }

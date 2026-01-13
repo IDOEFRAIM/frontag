@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link'; // 💡 Ajout de l'import Link
+import { useForm } from 'react-hook-form';
 import { 
     FaUsers, FaUserPlus, FaPhone, FaMapMarkerAlt, 
     FaEnvelope, FaCalendarAlt, FaDollarSign, FaSearch,
@@ -167,19 +168,18 @@ type ClientFormProps = {
     onSubmit: (client: Omit<Client, 'id' | 'totalOrders' | 'totalSpent' | 'lastOrderDate'>) => void;
 };
 
-const ClientFormModal: React.FC<ClientFormProps> = ({ onClose, onSubmit }) => {
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
-    const [location, setLocation] = useState('');
+type ClientFormData = {
+    name: string;
+    phone: string;
+    email: string;
+    location: string;
+};
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (name && phone) {
-            onSubmit({ name, phone, email, location });
-        } else {
-            alert("Le nom et le téléphone sont obligatoires.");
-        }
+const ClientFormModal: React.FC<ClientFormProps> = ({ onClose, onSubmit }) => {
+    const { register, handleSubmit, formState: { errors } } = useForm<ClientFormData>();
+
+    const onFormSubmit = (data: ClientFormData) => {
+        onSubmit(data);
     };
 
     return (
@@ -195,12 +195,12 @@ const ClientFormModal: React.FC<ClientFormProps> = ({ onClose, onSubmit }) => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
                     
-                    <InputGroup label="Nom Complet" icon={FaUsers} value={name} onChange={setName} required />
-                    <InputGroup label="Téléphone" icon={FaPhone} value={phone} onChange={setPhone} type="tel" required />
-                    <InputGroup label="Email (Optionnel)" icon={FaEnvelope} value={email} onChange={setEmail} type="email" />
-                    <InputGroup label="Adresse / Localisation" icon={FaMapMarkerAlt} value={location} onChange={setLocation} />
+                    <InputGroup label="Nom Complet" icon={FaUsers} register={register} name="name" required error={errors.name} />
+                    <InputGroup label="Téléphone" icon={FaPhone} register={register} name="phone" type="tel" required error={errors.phone} />
+                    <InputGroup label="Email (Optionnel)" icon={FaEnvelope} register={register} name="email" type="email" />
+                    <InputGroup label="Adresse / Localisation" icon={FaMapMarkerAlt} register={register} name="location" />
                     
                     <button 
                         type="submit" 
@@ -218,23 +218,23 @@ const ClientFormModal: React.FC<ClientFormProps> = ({ onClose, onSubmit }) => {
 type InputGroupProps = {
     label: string;
     icon: React.ElementType;
-    value: string;
-    onChange: (value: string) => void;
+    register: any;
+    name: string;
     type?: string;
     required?: boolean;
+    error?: any;
 };
 
-const InputGroup: React.FC<InputGroupProps> = ({ label, icon: Icon, value, onChange, type = 'text', required = false }) => (
+const InputGroup: React.FC<InputGroupProps> = ({ label, icon: Icon, register, name, type = 'text', required = false, error }) => (
     <div>
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
             <Icon className="text-green-600" /> {label} {required && <span className="text-red-500">*</span>}
         </label>
         <input
             type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            required={required}
+            {...register(name, { required })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
         />
+        {error && <span className="text-red-500 text-xs">Ce champ est requis</span>}
     </div>
 );

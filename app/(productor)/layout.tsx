@@ -3,20 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import ProductorSidebar from '@/components/utils/productorSidebar'; 
 import { FaBars, FaSpinner } from 'react-icons/fa';
-import { useAuth } from '@/hooks/useAuth'; // 👈 Importation du hook d'authentification
+import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 
-/**
- * Layout pour la zone Producteur.
- * Fournit une structure de tableau de bord avec une barre latérale et une zone de contenu,
- * tout en assurant que seul un utilisateur de rôle 'producer' y accède.
- */
 export default function ProductorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-    const { userRole, isAuthenticated, isLoading } = useAuth(); // 👈 UTILISATION DU HOOK
+    const { userRole, isAuthenticated, isLoading } = useAuth();
     const router = useRouter();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -24,93 +19,90 @@ export default function ProductorLayout({
         setIsSidebarOpen(!isSidebarOpen);
     };
 
-    // 1. GESTION DE L'ACCÈS ET DE LA REDIRECTION CÔTÉ CLIENT
+    // 1. GESTION DES ACCÈS
     useEffect(() => {
-        // Attendre que le chargement initial soit terminé
         if (isLoading) return;
 
-        // Si l'utilisateur est authentifié mais n'est PAS un producteur, rediriger
-        if (isAuthenticated && userRole !== 'producer') {
-            console.warn(`Tentative d'accès à l'Espace Producteur par le rôle: ${userRole}`);
-            
-            // Redirection vers le dashboard approprié (Admin ou Market)
-            if (userRole === 'admin') {
-                router.replace('/admin'); 
-            } else { // 'buyer' ou 'guest'
-                router.replace('/market'); 
-            }
-        } 
-        
-        // Si l'utilisateur n'est pas connecté du tout, on le renvoie à la connexion
+        // Si non connecté -> redirection login
         if (!isAuthenticated) {
             router.replace('/login');
+            return;
         }
 
+        // Vérification du rôle (on force la majuscule pour éviter les erreurs)
+        const role = userRole?.toUpperCase();
+        
+        if (role !== 'PRODUCER') {
+            console.warn(`Accès refusé. Rôle actuel: ${role}`);
+            
+            if (role === 'ADMIN') {
+                router.replace('/admin');
+            } else {
+                router.replace('/market');
+            }
+        }
     }, [isLoading, isAuthenticated, userRole, router]);
 
-    // 2. ÉTATS D'AFFICHAGE CONDITIONNEL
-
-    // A. Affichage pendant le chargement (vérification de la session)
+    // 2. ÉTATS DE CHARGEMENT ET SÉCURITÉ
+    
+    // Chargement initial
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <FaSpinner className="animate-spin text-4xl text-green-600" />
-                <p className="ml-3 text-lg font-medium text-gray-700">Vérification de la session Producteur...</p>
-            </div>
-        );
-    }
-    
-    // B. Bloquer l'affichage si l'utilisateur n'est pas Producteur
-    if (userRole !== 'producer') {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-red-50 text-red-700">
-                <p>Accès non autorisé. Redirection en cours...</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <FaSpinner className="animate-spin text-4xl text-green-600 mb-4" />
+                <p className="text-lg font-medium text-gray-700">Vérification de vos accès producteur...</p>
             </div>
         );
     }
 
-    // 3. AFFICHAGE NORMAL DU LAYOUT PRODUCTEUR (Seulement si userRole === 'producer')
+    // Sécurité stricte : si pas de role ou pas PRODUCER, on ne rend rien (le useEffect redirigera)
+    if (!isAuthenticated || userRole?.toUpperCase() !== 'PRODUCER') {
+        return null; 
+    }
+
+    // 3. RENDU DU DASHBOARD
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
             
-            {/* 1. Sidebar (Menu Latéral) */}
+            {/* Sidebar (Menu Latéral) */}
             <ProductorSidebar 
                 isOpen={isSidebarOpen} 
                 onClose={() => setIsSidebarOpen(false)} 
             />
             
-            {/* 2. Contenu Principal et En-tête */}
-            <div className="flex flex-col flex-1 overflow-hidden">
+            {/* Contenu Principal */}
+            <div className="flex flex-col flex-1 w-full overflow-hidden">
                 
-                {/* Header (Barre du Haut) - Visible uniquement sur mobile/tablette */}
-                <header className="flex items-center justify-between p-4 bg-white border-b border-gray-200 h-16 md:hidden sticky top-0 z-10">
-                    
-                    {/* Bouton pour ouvrir la Sidebar sur mobile */}
+                {/* Header Mobile */}
+                <header className="flex items-center justify-between p-4 bg-white border-b border-gray-200 h-16 md:hidden sticky top-0 z-30">
                     <button 
                         onClick={toggleSidebar} 
-                        className="text-gray-600 hover:text-gray-900"
+                        className="p-2 -ml-2 text-gray-600 hover:text-green-600 transition-colors"
+                        aria-label="Ouvrir le menu"
                     >
-                        <FaBars size={24} />
+                        <FaBars size={22} />
                     </button>
                     
-                    <h1 className="text-lg font-semibold text-gray-800">
+                    <h1 className="text-md font-bold text-green-700 uppercase tracking-tight">
                         Espace Producteur
                     </h1>
                     
-                    <div className="w-6"></div> {/* Placeholder */}
-
+                    <div className="w-8"></div> {/* Équilibre visuel */}
                 </header>
 
-                {/* Zone de Contenu Défilant */}
-                <main className="flex-1 overflow-y-auto p-4 md:p-6">
-                    {children}
+                {/* Main Content Area */}
+                <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8 custom-scrollbar">
+                    {/* Conteneur pour limiter la largeur sur très grands écrans */}
+                    <div className="max-w-7xl mx-auto">
+                        {children}
+                    </div>
                 </main>
             </div>
 
-            {/* Overlay pour le menu mobile */}
+            {/* Overlay Mobile */}
             {isSidebarOpen && (
                 <div 
-                    className="fixed inset-0 z-40 bg-black opacity-50 md:hidden" 
+                    className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden transition-opacity" 
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}

@@ -1,123 +1,136 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // 👈 Correction 1: Import de useRouter
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth'; 
-import { FaSignInAlt, FaSpinner } from 'react-icons/fa';
+import { FaSignInAlt, FaSpinner, FaLock, FaEnvelope } from 'react-icons/fa';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { toast, Toaster } from 'react-hot-toast';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+const loginSchema = z.object({
+  email: z.string().email("Email invalide"),
+  password: z.string().min(1, "Mot de passe requis"),
+});
+
+type LoginFormInputs = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-    // Initialisation du router
-    const router = useRouter(); // 👈 Correction 2: Initialisation de l'objet router
-    
-    // 1. UTILISATION DU HOOK useAuth
-    const { login, isAuthenticated, isLoading, error: authError, userRole } = useAuth();
+    const router = useRouter();
+    const { login, isAuthenticated, isLoading, userRole } = useAuth();
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [pageError, setPageError] = useState<string | null>(null);
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormInputs>({
+        resolver: zodResolver(loginSchema)
+    });
 
-    // Redirection si l'utilisateur est déjà connecté et que la vérification est terminée
-    useEffect(() => {
-        if (!isLoading && isAuthenticated) {
-            // Gérer la redirection si l'utilisateur est déjà connecté
-            if (userRole === 'admin') router.replace('/admin');
-            else if (userRole === 'producer') router.replace('/dashboard');
-            else if (userRole === 'buyer') router.replace('/market');
-            // Si le rôle n'est pas défini (par exemple, si le token est corrompu mais isAuthenticated est vrai), rediriger vers une page par défaut ou se déconnecter
-            else router.replace('/'); 
-        }
-    }, [isAuthenticated, isLoading, userRole, router]); // Dépendances importantes
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setPageError(null); 
-        
-        try {
-            await login(email, password); 
-            // NOTE : La redirection après succès se produit dans l'useEffect ci-dessus 
-            // ou idéalement DANS le hook useAuth pour découpler la page de la logique de routage.
-            
-        } catch (err: any) {
-            // L'erreur est gérée et affichée via l'état 'authError' du hook.
+    // Fonction utilitaire pour centraliser les chemins de redirection
+    const redirectUserByRole = (role: string) => {
+        const normalizedRole = role?.toUpperCase();
+        switch (normalizedRole) {
+            case 'ADMIN':
+                router.push('/admin');
+                break;
+            case 'PRODUCER':
+                router.push('/dashboard');
+                break;
+            case 'USER':
+                router.push('/market');
+                break;
+            default:
+                router.push('/');
         }
     };
 
-    // Afficher un spinner si le hook est en train de vérifier la session initiale
+    // 1. Redirection SI déjà connecté à l'arrivée sur la page
+    useEffect(() => {
+        if (!isLoading && isAuthenticated && userRole) {
+            redirectUserByRole(userRole);
+        }
+    }, [isAuthenticated, isLoading, userRole]);
+
+    // 2. Gestion du formulaire
+    const onSubmit = async (data: LoginFormInputs) => {
+        const result = await login(data.email, data.password);
+        if (result?.success) {
+            toast.success("Connexion réussie !");
+            if (result.user?.role) {
+                redirectUserByRole(result.user.role);
+            }
+        } else {
+            toast.error(result?.error || "Échec de la connexion");
+        }
+    };
+
     if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <FaSpinner className="animate-spin text-4xl text-green-600" />
-                <p className="ml-3 text-lg font-medium text-gray-700">Vérification de la session...</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <FaSpinner className="animate-spin text-4xl text-green-600 mb-4" />
+                <p className="text-lg font-medium text-gray-700">Vérification de vos accès...</p>
             </div>
         );
     }
-    
-    // Si l'utilisateur est déjà connecté, on n'affiche rien, la redirection est gérée par useEffect.
-    if (isAuthenticated) return null;
-
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-            <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-                <h2 className="text-2xl font-black text-center text-green-700 mb-6 flex items-center justify-center gap-2">
-                    <FaSignInAlt /> Connexion AgriConnect
-                </h2>
-                
-                {/* Afficher l'erreur du Context ou de la page */}
-                {(authError || pageError) && (
-                    <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm mb-4">
-                        {authError || pageError}
-                    </div>
-                )}
-
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={isLoading}
-                            placeholder="Ex: producteur@test.com"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-gray-100 p-4">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
+                <div className="text-center mb-8">
+                    <h2 className="text-3xl font-black text-green-700 flex items-center justify-center gap-2">
+                        <FaSignInAlt className="text-green-500" /> Connexion
+                    </h2>
+                    <p className="text-gray-500 mt-2 italic text-sm">"Le succès est au bout de l'effort."</p>
                 </div>
+                
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Email</label>
+                        <div className="relative">
+                            <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="email"
+                                {...register("email")}
+                                disabled={isSubmitting}
+                                placeholder="agriculteur@faso.com"
+                                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all ${errors.email ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.email && <p className="text-red-500 text-xs mt-1 ml-1">{errors.email.message}</p>}
+                    </div>
 
-                <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full mt-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    {isLoading ? (
-                        <>
-                            <FaSpinner className="animate-spin" /> Connexion en cours...
-                        </>
-                    ) : (
-                        'Se connecter'
-                    )}
-                </button>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase ml-1 mb-1">Mot de passe</label>
+                        <div className="relative">
+                            <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="password"
+                                {...register("password")}
+                                disabled={isSubmitting}
+                                placeholder="••••••••"
+                                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all ${errors.password ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.password && <p className="text-red-500 text-xs mt-1 ml-1">{errors.password.message}</p>}
+                    </div>
 
-                <p className="mt-6 text-center text-sm text-gray-500">
-                    Pas encore de compte ? <Link href="/register" className="text-green-600 hover:underline font-medium">S'inscrire</Link>
-                </p>
-            </form>
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        {isSubmitting ? <FaSpinner className="animate-spin" /> : "Se connecter"}
+                    </button>
+                </form>
+
+                <div className="mt-6 text-center">
+                    <p className="text-gray-500 text-sm">
+                        Pas encore de compte ?{' '}
+                        <Link href="/signup" className="text-green-600 font-bold hover:underline">
+                            Créer un compte
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }

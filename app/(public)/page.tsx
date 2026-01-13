@@ -1,286 +1,242 @@
 // app/page.tsx
-import React from 'react';
-import Link from 'next/link';
-// 👇 ARCHITECTURE : Connexion au Cœur du Système (Service Layer)
-import { getProducts } from '@/services/catalogue.service';
-import { Product } from '@/types/market';
+'use client';
 
-export const metadata = {
-    title: 'AgriConnect | Le Marché Résilient',
-    description: "Connecter le Sahel. Sans intermédiaire.",
-};
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Mic, Zap, ShieldCheck, ArrowUpRight, Cpu, Globe, 
+  Target, CheckCircle2, ChevronDown, Truck, Database, Smartphone,
+  HelpCircle
+} from 'lucide-react';
 
-// --- DESIGN SYSTEM : "SAHEL FUTURISTE" ---
 const THEME = {
-    ocre: '#A63C06',    // La Terre, La Fondation
-    green: '#2E7D32',   // Le Sorgho, Le Succès (Plus profond que le vert signal)
-    indigo: '#1A237E',  // Le Ciel, Le Faso Dan Fani (Confiance)
-    sand: '#F9F9F7',    // Fond doux (Moins agressif que le blanc pur)
-    textMain: '#2D2D2D',
-    textSub: '#5D4037', // Marron très foncé pour les sous-titres
-    white: '#FFFFFF',
-    fontHead: 'Oswald, sans-serif', // Police "Affiche", forte pour l'oralité écrite
-    fontBody: 'Barlow, sans-serif', // Très lisible sur petits écrans
+    background: '#F9F7F2',
+    surface: '#FFFFFF',
+    primary: '#E65100', 
+    accent: '#2E5BFF',
+    text: '#0F172A',
+    muted: '#64748B',
+    border: '#EDEAE4',
+    shadow: '0 4px 20px -4px rgba(0,0,0,0.05)',
 };
 
-// --- COMPOSANTS UI "RESILIENCE" ---
+// --- COMPOSANTS INTERACTIFS ---
 
-// Indicateur Audio (Pour le Voice-Commerce)
-const VoiceBadge = () => (
-    <div style={{ 
-        display: 'inline-flex', alignItems: 'center', gap: '5px',
-        backgroundColor: '#E8F5E9', color: THEME.green, 
-        padding: '4px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold',
-        border: `1px solid ${THEME.green}`
-    }}>
-        <span>🎤</span> <span>AUDIO DISPO</span>
-    </div>
-);
+const fadeInUp = {
+    initial: { opacity: 0, y: 30 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true },
+    transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
+};
 
-// Carte Produit Optimisée "Data Saver"
-const ProductCardSahel = ({ product }: { product: Product }) => (
-    <Link href={`/catalogue?id=${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div style={{ 
-            backgroundColor: THEME.white,
-            borderRadius: '8px',
-            overflow: 'hidden',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.05)', // Ombre légère, pas gourmande en rendu
-            border: `1px solid #eee`,
+const BentoCard = ({ icon: Icon, title, desc, colSpan, highlight = false }) => (
+    <motion.div 
+        variants={fadeInUp}
+        initial="initial"
+        whileInView="whileInView"
+        viewport={{ once: true }}
+        whileHover={{ y: -8, boxShadow: '0 20px 40px -12px rgba(0,0,0,0.08)' }}
+        style={{ 
+            gridColumn: colSpan, 
+            backgroundColor: highlight ? THEME.text : THEME.surface, 
+            borderRadius: '32px', 
+            padding: '48px', 
+            border: `1px solid ${THEME.border}`,
             display: 'flex',
             flexDirection: 'column',
-            height: '100%'
+            justifyContent: 'space-between',
+            position: 'relative',
+            boxShadow: THEME.shadow,
+            color: highlight ? 'white' : THEME.text,
+            minHeight: '340px'
+        }}
+    >
+        <div style={{ 
+            width: '64px', height: '64px', 
+            backgroundColor: highlight ? 'rgba(255,255,255,0.1)' : '#F1F5F9', 
+            borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' 
         }}>
-            {/* Zone Image (Optimisée visuellement) */}
-            <div style={{ height: '180px', position: 'relative', backgroundColor: '#ddd' }}>
-                <img 
-                    src={product.images[0]} 
-                    alt={product.name} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                />
-                <div style={{ 
-                    position: 'absolute', top: '10px', left: '10px',
-                    backgroundColor: THEME.ocre, color: THEME.white,
-                    padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                }}>
-                     📍 {(product as any).regionId === 'hauts-bassins' ? 'BOBO' : 
-                         (product as any).regionId === 'centre' ? 'OUAGA' : 
-                         (product as any).regionId?.toUpperCase() || 'LOCAL'}
-                </div>
-            </div>
-
-            {/* Zone Info "Orale" et Directe */}
-            <div style={{ padding: '15px', display: 'flex', flexDirection: 'column', flex: 1 }}>
-                <div style={{ marginBottom: '8px' }}>
-                    <VoiceBadge />
-                </div>
-                <h3 style={{ margin: '0 0 5px 0', fontSize: '1.1rem', color: THEME.textMain, fontWeight: '700' }}>
-                    {product.name}
-                </h3>
-                <p style={{ fontSize: '0.9rem', color: '#666', margin: '0 0 15px 0', lineHeight: '1.4', flex: 1 }}>
-                    {product.description.substring(0, 50)}...
-                </p>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px dashed #ddd', paddingTop: '10px' }}>
-                    <div>
-                        <span style={{ fontSize: '0.8rem', color: THEME.textSub }}>Prix Producteur</span>
-                        <div style={{ color: THEME.ocre, fontWeight: 'bold', fontSize: '1.2rem' }}>
-                            {product.price.toLocaleString()} CFA
-                        </div>
-                    </div>
-                    <div style={{ fontSize: '0.8rem', backgroundColor: THEME.sand, padding: '5px', borderRadius: '4px' }}>
-                        /{product.unit}
-                    </div>
-                </div>
-            </div>
+            <Icon color={highlight ? 'white' : THEME.primary} size={30} />
         </div>
-    </Link>
+        <div>
+            <h3 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '16px', letterSpacing: '-0.03em' }}>{title}</h3>
+            <p style={{ color: highlight ? 'rgba(255,255,255,0.7)' : THEME.muted, fontSize: '1.1rem', lineHeight: '1.6' }}>{desc}</p>
+        </div>
+    </motion.div>
 );
 
-// --- PAGE PRINCIPALE (SERVER COMPONENT) ---
-export default async function HomePage() {
-    
-    // 1. CHARGEMENT DES DONNÉES (Simulation Latence Réseau)
-    // On récupère les produits pour montrer que le catalogue est "Offline-Ready" (conceptuel)
-    const products = await getProducts({ category: 'all' });
-    const localStars = products.slice(0, 4); 
-
+const FAQItem = ({ question, answer }: { question: string, answer: string }) => {
+    const [isOpen, setIsOpen] = useState(false);
     return (
-        <div style={{ fontFamily: THEME.fontBody, backgroundColor: THEME.sand, color: THEME.textMain, minHeight: '100vh' }}>
+        <div style={{ borderBottom: `1px solid ${THEME.border}`, padding: '24px 0' }}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}
+            >
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: THEME.text }}>{question}</span>
+                <motion.div animate={{ rotate: isOpen ? 180 : 0 }}><ChevronDown size={20} color={THEME.muted} /></motion.div>
+            </button>
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.p 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        style={{ marginTop: '16px', color: THEME.muted, lineHeight: '1.6', overflow: 'hidden' }}
+                    >
+                        {answer}
+                    </motion.p>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
+export default function HomePage() {
+    return (
+        <div style={{ backgroundColor: THEME.background, color: THEME.text, minHeight: '100vh', fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
             
-            {/* --- HERO SECTION : L'APPEL --- */}
-            <header style={{ 
-                backgroundColor: THEME.indigo, 
-                color: THEME.white, 
-                padding: '40px 20px 80px 20px', // Padding bas large pour l'effet de superposition
-                position: 'relative',
-                overflow: 'hidden'
-            }}>
-                {/* Motif de fond abstrait (évoquant le textile ou les ondes) */}
-                <div style={{ 
-                    position: 'absolute', top: 0, right: 0, width: '300px', height: '300px', 
-                    background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
-                    borderRadius: '50%', transform: 'translate(30%, -30%)'
-                }}></div>
-
-                <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
-                    <div style={{ display: 'inline-block', backgroundColor: THEME.green, padding: '5px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '20px' }}>
-                        ⚡️ PWA ACTIVE • MODE HORS-LIGNE DISPO
-                    </div>
-                    
-                    <h1 style={{ 
-                        fontFamily: THEME.fontHead, 
-                        fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', 
-                        lineHeight: 1.1, 
-                        maxWidth: '800px',
-                        margin: '0 0 30px 0'
-                    }}>
-                        ICI, C'EST LA TERRE<br/>
-                        <span style={{ color: '#FFAB91' }}>QUI COMMANDE.</span>
-                    </h1>
-                    
-                    <p style={{ fontSize: '1.2rem', maxWidth: '600px', marginBottom: '40px', opacity: 0.9 }}>
-                        Pas de carte Visa ? Pas de problème.<br/>
-                        Pas d'adresse précise ? On se repère à la voix.<br/>
-                        AgriConnect, c'est le marché qui s'adapte à vous.
-                    </p>
-
-                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-                        <Link href="/catalogue" style={{ 
-                            backgroundColor: THEME.ocre, color: THEME.white, 
-                            padding: '18px 35px', borderRadius: '4px', fontWeight: 'bold', textDecoration: 'none',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '10px'
-                        }}>
-                            <span>📦</span> VOIR LES STOCKS
-                        </Link>
-                        <button style={{ 
-                            backgroundColor: 'rgba(255,255,255,0.1)', color: THEME.white, border: '2px solid rgba(255,255,255,0.3)',
-                            padding: '18px 35px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer'
-                        }}>
-                            🎤 COMMENT ÇA MARCHE ?
-                        </button>
-                    </div>
+            {/* --- HERO SECTION --- */}
+            <header style={{ minHeight: '85vh', display: 'flex', alignItems: 'center', padding: '120px 8% 60px' }}>
+                <div style={{ maxWidth: '900px' }}>
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 16px', backgroundColor: THEME.surface, border: `1px solid ${THEME.border}`, borderRadius: '100px', marginBottom: '32px' }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#10B981' }} />
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Standard National V2.6</span>
+                        </div>
+                        <h1 style={{ fontSize: 'clamp(3.5rem, 8vw, 6rem)', lineHeight: 1, fontWeight: 900, margin: 0, letterSpacing: '-0.04em' }}>
+                            PILIER DE <span style={{ color: THEME.primary }}>CONFIANCE</span> <br/>
+                            NUMÉRIQUE DU SAHEL.
+                        </h1>
+                        <p style={{ maxWidth: '600px', fontSize: '1.3rem', marginTop: '40px', color: THEME.muted, lineHeight: '1.7' }}>
+                            Infrastructure de marché souveraine garantissant la traçabilité et la prospérité des récoltes du Burkina Faso.
+                        </p>
+                        <div style={{ marginTop: '56px' }}>
+                            <button style={{ backgroundColor: THEME.text, color: 'white', padding: '24px 48px', borderRadius: '18px', fontWeight: 700, cursor: 'pointer', border: 'none', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1.1rem' }}>
+                                Déployer le catalogue <ArrowUpRight size={22} />
+                            </button>
+                        </div>
+                    </motion.div>
                 </div>
             </header>
 
-            {/* --- SECTION "LE GROUPAGE" (L'Algorithme Communautaire) --- */}
-            {/* Cette section "flotte" sur le header pour créer de la profondeur */}
-            <div style={{ maxWidth: '1200px', margin: '-40px auto 60px auto', padding: '0 20px', position: 'relative', zIndex: 3 }}>
-                <div style={{ 
-                    backgroundColor: THEME.white, 
-                    borderRadius: '8px', 
-                    padding: '30px',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
-                    borderLeft: `6px solid ${THEME.green}`,
-                    display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '30px'
-                }}>
-                    <div style={{ flex: '1 1 300px' }}>
-                        <h3 style={{ margin: '0 0 10px 0', color: THEME.green, textTransform: 'uppercase', fontSize: '0.9rem', letterSpacing: '1px' }}>
-                            👥 LA FORCE DU NOMBRE
-                        </h3>
-                        <h2 style={{ margin: 0, fontFamily: THEME.fontHead, fontSize: '1.8rem', color: THEME.textMain }}>
-                            Il y a 5 voisins à Patte d'Oie qui veulent des Oignons.
-                        </h2>
-                        <p style={{ color: '#666', marginTop: '10px' }}>
-                            Commandez ensemble. Le camion ne s'arrête qu'une fois. La livraison devient gratuite.
-                        </p>
-                    </div>
-                    <div style={{ flex: '0 0 auto' }}>
-                        <button style={{ 
-                            backgroundColor: THEME.textMain, color: THEME.white, 
-                            padding: '12px 25px', borderRadius: '30px', border: 'none', fontWeight: 'bold', cursor: 'pointer'
-                        }}>
-                            REJOINDRE LE GROUPE "OUAGA-SUD" →
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* --- SECTION CATALOGUE (La Preuve par la Data) --- */}
-            <section style={{ maxWidth: '1200px', margin: '0 auto 80px auto', padding: '0 20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', marginBottom: '30px' }}>
-                    <div>
-                        <h2 style={{ margin: 0, fontFamily: THEME.fontHead, fontSize: '2.5rem', color: THEME.ocre }}>
-                            DIRECT DU CHAMP
-                        </h2>
-                        <p style={{ margin: '5px 0 0 0', color: THEME.textSub }}>
-                            Prix fixés par le producteur. Argent sécurisé jusqu'à la livraison.
-                        </p>
-                    </div>
-                    {/* Filtre Rapide Visuel */}
-                    <div style={{ display: 'none', md: 'flex', gap: '10px' }}> 
-                        {/* Note: Pour simplifier ici, masqué sur mobile, mais idéalement un scroll horizontal */}
-                    </div>
+            {/* --- BENTO GRID (Architecture Technique) --- */}
+            <section style={{ padding: '0 8% 120px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+                    <h2 style={{ fontSize: '2.8rem', fontWeight: 800 }}>Moteur de Croissance Locale</h2>
+                    <p style={{ color: THEME.muted, fontSize: '1.2rem', marginTop: '12px' }}>Une architecture technique robuste pour des enjeux réels.</p>
                 </div>
 
-                {/* Grille de Produits */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '25px' }}>
-                    {localStars.map(product => (
-                        <ProductCardSahel key={product.id} product={product} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '32px' }}>
+                    <BentoCard 
+                        icon={Truck} colSpan="span 8"
+                        title="Algorithme de Collecte"
+                        desc="Optimisation dynamique des routes pour les producteurs ruraux. Réduction de 40% des pertes post-récolte via le routage prédictif."
+                    />
+                    <BentoCard 
+                        icon={Mic} colSpan="span 4" highlight={true}
+                        title="Inclusion Vocale"
+                        desc="Interface certifiée en Mooré, Dioula et Fulfuldé pour une accessibilité totale sans barrière d'alphabétisation."
+                    />
+                    <BentoCard 
+                        icon={Database} colSpan="span 5"
+                        title="Edge Ledger"
+                        desc="Registre décentralisé capable de certifier chaque sac de récolte même sans connexion internet stable."
+                    />
+                    <BentoCard 
+                        icon={Smartphone} colSpan="span 7"
+                        title="Micro-Crédit Instantané"
+                        desc="Accès au financement basé sur l'identité numérique agricole et l'historique de production certifié."
+                    />
+                </div>
+            </section>
+
+            {/* --- VISION & IMPACT --- */}
+            <section style={{ padding: '120px 8%', backgroundColor: THEME.surface, borderTop: `1px solid ${THEME.border}` }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '100px', alignItems: 'center' }}>
+                    <motion.div {...fadeInUp}>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 800, marginBottom: '40px' }}>Transformer la terre par la <span style={{ color: THEME.primary }}>Data</span>.</h2>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+                            {[
+                                { t: "L'Asymétrie d'Information", d: "Le producteur accède enfin au prix réel du marché mondial en temps réel.", icon: <Target size={24}/> },
+                                { t: "Souveraineté des Données", d: "Les données agricoles appartiennent au pays. Nous sécurisons ce patrimoine numérique.", icon: <ShieldCheck size={24}/> }
+                            ].map((item, i) => (
+                                <div key={i} style={{ display: 'flex', gap: '20px' }}>
+                                    <div style={{ color: THEME.primary }}>{item.icon}</div>
+                                    <div>
+                                        <h4 style={{ fontWeight: 700, fontSize: '1.2rem' }}>{item.t}</h4>
+                                        <p style={{ color: THEME.muted, fontSize: '1rem' }}>{item.d}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </motion.div>
+                    <motion.div {...fadeInUp} style={{ backgroundColor: THEME.background, borderRadius: '48px', padding: '80px', border: `1px solid ${THEME.border}`, textAlign: 'center' }}>
+                        <CheckCircle2 color={THEME.primary} size={64} style={{ margin: '0 auto 32px' }} />
+                        <div style={{ fontSize: '5rem', fontWeight: 900, color: THEME.primary, lineHeight: 1 }}>+25%</div>
+                        <h3 style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '20px' }}>Revenus Directs</h3>
+                        <p style={{ color: THEME.muted, marginTop: '16px' }}>Impact net mesuré pour les coopératives ruraux partenaires.</p>
+                    </motion.div>
+                </div>
+            </section>
+
+            {/* --- L'ÉQUIPE --- */}
+            <section style={{ padding: '120px 8%' }}>
+                <div style={{ textAlign: 'center', marginBottom: '80px' }}>
+                    <h2 style={{ fontSize: '2.5rem', fontWeight: 800 }}>L'Élite au service du Sillon</h2>
+                    <p style={{ color: THEME.muted }}>L'alliance de la diaspora et du génie local pour le Burkina.</p>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '32px' }}>
+                    {[
+                        { name: "Dr. Issa Traoré", role: "CTO - MIT / Ouaga" },
+                        { name: "Mariam Sawadogo", role: "Impact Communautaire" },
+                        { name: "Ousmane Ouédraogo", role: "Architecture Cloud" },
+                        { name: "Sarah Koné", role: "Expertise Logistique" }
+                    ].map((member, i) => (
+                        <motion.div key={i} whileHover={{ y: -10 }} style={{ textAlign: 'center', backgroundColor: THEME.surface, padding: '40px 20px', borderRadius: '32px', border: `1px solid ${THEME.border}` }}>
+                            <div style={{ width: 100, height: 100, backgroundColor: THEME.background, borderRadius: '50%', margin: '0 auto 24px' }} />
+                            <h4 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{member.name}</h4>
+                            <p style={{ color: THEME.primary, fontSize: '0.9rem', fontWeight: 700, marginTop: '8px' }}>{member.role}</p>
+                        </motion.div>
                     ))}
                 </div>
-
-                <div style={{ textAlign: 'center', marginTop: '50px' }}>
-                    <Link href="/catalogue" style={{ 
-                        display: 'inline-block', padding: '15px 40px', 
-                        border: `2px solid ${THEME.ocre}`, color: THEME.ocre, 
-                        fontWeight: 'bold', borderRadius: '4px', textDecoration: 'none',
-                        textTransform: 'uppercase', letterSpacing: '1px'
-                    }}>
-                        Explorer tout le catalogue
-                    </Link>
-                </div>
             </section>
 
-            {/* --- SECTION CONFIANCE (Mobile Money & Escrow) --- */}
-            <section style={{ backgroundColor: '#fff', borderTop: `1px solid #eee`, padding: '80px 20px' }}>
-                <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
-                    <h2 style={{ fontFamily: THEME.fontHead, fontSize: '2.5rem', marginBottom: '50px' }}>
-                        LA CONFIANCE, C'EST TECHNIQUE.
-                    </h2>
-                    
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '40px' }}>
-                        <div>
-                            <div style={{ fontSize: '3rem', marginBottom: '15px' }}>🔒</div>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>Coffre-Fort Mobile</h4>
-                            <p style={{ color: '#666', fontSize: '0.95rem' }}>
-                                Vous payez par Orange/Moov Money. L'argent est bloqué. Le producteur ne touche rien tant que vous n'avez pas validé.
-                            </p>
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '3rem', marginBottom: '15px' }}>📍</div>
-                            <div style={{ display: 'inline-block', backgroundColor: '#E1F5FE', color: '#0288D1', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '10px' }}>NOUVEAU</div>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>Guidage Vocal</h4>
-                            <p style={{ color: '#666', fontSize: '0.95rem' }}>
-                                Pas d'adresse ? Envoyez un vocal au livreur : <em>"C'est la porte bleue après le maquis."</em>
-                            </p>
-                        </div>
-                        <div>
-                            <div style={{ fontSize: '3rem', marginBottom: '15px' }}>⚖️</div>
-                            <h4 style={{ margin: '0 0 10px 0', fontSize: '1.2rem' }}>Qualité Garantie</h4>
-                            <p style={{ color: '#666', fontSize: '0.95rem' }}>
-                                Produit gâté ? Photo immédiate, remboursement automatique en 15 minutes.
-                            </p>
-                        </div>
+            {/* --- FAQ --- */}
+            <section style={{ padding: '100px 8%', borderTop: `1px solid ${THEME.border}` }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '100px' }}>
+                    <div>
+                        <HelpCircle size={48} color={THEME.primary} />
+                        <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginTop: '24px' }}>Questions <br/> Fréquentes</h2>
+                    </div>
+                    <div>
+                        <FAQItem question="Comment garantissez-vous la qualité ?" answer="Chaque lot est inspecté physiquement et les données (humidité, calibre) sont inscrites sur le registre numérique immuable." />
+                        <FAQItem question="Fonctionnement sans internet ?" answer="Notre protocole USSD/SMS permet de passer des commandes et certifier des lots en zone blanche, avec synchronisation automatique au retour réseau." />
+                        <FAQItem question="Quels sont les frais ?" answer="Nous prélevons 3% sur les transactions réussies, dont 1% alimente un fonds de garantie pour les aléas climatiques." />
                     </div>
                 </div>
             </section>
 
-            {/* --- FOOTER SIMPLE & LÉGER --- */}
-            <footer style={{ backgroundColor: THEME.indigo, color: 'rgba(255,255,255,0.7)', padding: '60px 20px', fontSize: '0.9rem' }}>
-                <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ color: THEME.white, fontSize: '1.5rem', fontFamily: THEME.fontHead, marginBottom: '20px' }}>
-                        AgriConnect.
+            {/* --- FOOTER --- */}
+            <footer style={{ padding: '100px 8% 60px', backgroundColor: THEME.text, color: 'white' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '80px', marginBottom: '80px' }}>
+                    <div>
+                        <h3 style={{ fontSize: '1.5rem', fontWeight: 800 }}>AGRI<span style={{ color: THEME.primary }}>CONNECT</span></h3>
+                        <p style={{ opacity: 0.6, marginTop: '24px', maxWidth: '300px' }}>Indépendance alimentaire et excellence technologique au Burkina Faso.</p>
                     </div>
-                    <p style={{ textAlign: 'center', maxWidth: '500px', marginBottom: '30px' }}>
-                        Une infrastructure développée à Ouagadougou pour le Sahel.<br/>
-                        Optimisée pour Edge Network (2G/3G).
-                    </p>
-                    <div style={{ display: 'flex', gap: '20px' }}>
-                        <span>© 2025 AgriConnect</span>
-                        <span>•</span>
-                        <a href="#" style={{ color: THEME.white, textDecoration: 'none' }}>Connexion Producteur</a>
+                    <div>
+                        <h5 style={{ fontWeight: 700, marginBottom: '20px' }}>Contact</h5>
+                        <p style={{ opacity: 0.6 }}>Ouagadougou, Zone d'Innovation</p>
+                        <p style={{ opacity: 0.6 }}>contact@agriconnect.bf</p>
                     </div>
+                    <div>
+                        <h5 style={{ fontWeight: 700, marginBottom: '20px' }}>Souveraineté</h5>
+                        <p style={{ opacity: 0.6 }}>Burkina Faso</p>
+                        <p style={{ opacity: 0.6 }}>© 2025</p>
+                    </div>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '40px', textAlign: 'center', opacity: 0.4, fontSize: '0.85rem' }}>
+                    LA PATRIE OU LA MORT, NOUS VAINCRONS.
                 </div>
             </footer>
         </div>

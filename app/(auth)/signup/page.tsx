@@ -1,176 +1,232 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/useAuth'; // 👈 Importation du hook d'authentification
-import { Role } from '@/types/auth'; // Utilisation du type Role
-import { FaUserPlus, FaSpinner, FaSeedling, FaShoppingCart } from 'react-icons/fa';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth'; 
+import type { Role } from "@prisma/client";
+import { useForm } from 'react-hook-form';
+import { toast, Toaster } from 'react-hot-toast';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+import { 
+  FaUserPlus, FaSpinner, FaSeedling, FaShoppingCart, 
+  FaEnvelope, FaLock, FaUser, FaShieldAlt 
+} from 'react-icons/fa';
+
+const signupSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  email: z.string().email("Email invalide"),
+  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
+  role: z.enum(['USER', 'PRODUCER', 'ADMIN']),
+  adminSecret: z.string().optional(),
+}).refine((data) => {
+    if (data.role === 'ADMIN' && !data.adminSecret) {
+        return false;
+    }
+    return true;
+}, {
+    message: "Code secret requis pour les administrateurs",
+    path: ["adminSecret"],
+});
+
+type SignupFormInputs = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
-    // 1. UTILISATION DU HOOK useAuth
-    const { register, isAuthenticated, isLoading: authLoading, error: authError, userRole } = useAuth();
+    const { register: registerUser, isAuthenticated, isLoading, userRole } = useAuth();
     const router = useRouter();
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [role, setRole] = useState<Role>('buyer'); 
+    const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<SignupFormInputs>({
+        resolver: zodResolver(signupSchema),
+        defaultValues: {
+            role: 'USER',
+            name: '',
+            email: '',
+            password: '',
+            adminSecret: ''
+        }
+    });
 
-    // Gérer la redirection si l'utilisateur est déjà connecté
+    const selectedRole = watch('role');
+
+    // Redirection automatique si déjà authentifié
     useEffect(() => {
-        if (!authLoading && isAuthenticated) {
-            if (userRole === 'admin') router.replace('/admin');
-            else if (userRole === 'producer') router.replace('/producer/dashboard');
+        if (!isLoading && isAuthenticated) {
+            const r = userRole?.toUpperCase();
+            if (r === 'ADMIN') router.replace('/admin');
+            else if (r === 'PRODUCER') router.replace('/productor/dashboard');
             else router.replace('/market');
         }
-    }, [isAuthenticated, authLoading, userRole, router]);
+    }, [isAuthenticated, isLoading, userRole, router]);
 
+    const onSubmit = async (data: SignupFormInputs) => {
+        const result = await registerUser({ 
+            email: data.email, 
+            password: data.password, 
+            role: data.role as Role, 
+            name: data.name, 
+            adminSecret: data.adminSecret 
+        });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        try {
-            // 2. APPEL DE LA FONCTION REGISTER DU CONTEXTE
-            // Le hook useAuth gère l'appel au service, le stockage de l'état/token, et la redirection.
-            await register(email, password, role, name);
-            
-        } catch (err: any) {
-            // L'erreur est gérée et affichée via l'état 'authError' du hook.
+        if (result?.success) {
+            toast.success("Inscription réussie ! Redirection...");
+            // Redirection is handled by useAuth or useEffect, but we can force it here if needed.
+            // Since useAuth updates state, the useEffect above might trigger.
+            // But let's wait a bit or let the useEffect handle it.
+            // Actually, useAuth sets user and role, so useEffect will trigger.
+        } else {
+            toast.error(result?.error || "Échec de l'inscription");
         }
     };
-    
-    // Afficher un spinner si le hook est en train de vérifier la session initiale
-    if (authLoading) {
+
+    if (isLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <FaSpinner className="animate-spin text-4xl text-green-600" />
-                <p className="ml-3 text-lg font-medium text-gray-700">Vérification de la session...</p>
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+                <FaSpinner className="animate-spin text-4xl text-green-600 mb-4" />
+                <p className="text-lg font-medium text-gray-700">Préparation de votre espace...</p>
             </div>
         );
     }
 
-    // Si l'utilisateur est déjà connecté, ne rien afficher, la redirection est gérée par useEffect.
-    if (isAuthenticated) return null;
-
-
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-            <form 
-                onSubmit={handleSubmit} 
-                className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-lg"
-            >
-                <h2 className="text-3xl font-black text-center text-green-700 mb-8 flex items-center justify-center gap-3">
-                    <FaUserPlus /> Créer votre compte
-                </h2>
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-gray-100 p-4">
+            <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-100">
                 
-                {/* Afficher l'erreur du Context */}
-                {authError && (
-                    <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm mb-4">
-                        {authError}
-                    </div>
-                )}
-
-                <div className="space-y-4">
-                    {/* Champ Nom/Entreprise */}
-                    <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Nom / Nom de l'entreprise</label>
-                        <input
-                            type="text"
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            disabled={authLoading}
-                            placeholder="Ex: Coopérative Faso-Kaba ou Ali Dupont"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
-
-                    {/* Champ Rôle (Sélection) */}
-                    <div>
-                        <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Je suis...</label>
-                        <div className="flex gap-4">
-                            <RoleRadio roleValue="buyer" currentRole={role} setRole={setRole} icon={FaShoppingCart} label="Acheteur" disabled={authLoading} />
-                            <RoleRadio roleValue="producer" currentRole={role} setRole={setRole} icon={FaSeedling} label="Producteur" disabled={authLoading} />
-                        </div>
-                    </div>
-                    
-                    {/* Champ Email */}
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input
-                            type="email"
-                            id="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={authLoading}
-                            placeholder="Votre email"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
-
-                    {/* Champ Mot de passe */}
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                        <input
-                            type="password"
-                            id="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={authLoading}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                        />
-                    </div>
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-black text-green-700 flex items-center justify-center gap-2">
+                        <FaSeedling className="text-green-500" /> AgriConnect
+                    </h1>
+                    <p className="text-gray-500 mt-2 font-medium">Rejoignez la révolution agricole</p>
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={authLoading}
-                    className="w-full mt-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                    {authLoading ? (
-                        <>
-                            <FaSpinner className="animate-spin" /> Enregistrement en cours...
-                        </>
-                    ) : (
-                        "S'inscrire"
-                    )}
-                </button>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    
+                    {/* SÉLECTEUR DE RÔLE */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-bold text-gray-700 ml-1">Type de compte</label>
+                        <div className="flex gap-2">
+                            <RoleCard 
+                                selected={selectedRole === 'USER'} 
+                                onClick={() => setValue('role', 'USER')} 
+                                icon={FaShoppingCart} 
+                                label="Acheteur" 
+                            />
+                            <RoleCard 
+                                selected={selectedRole === 'PRODUCER'} 
+                                onClick={() => setValue('role', 'PRODUCER')} 
+                                icon={FaSeedling} 
+                                label="Producteur" 
+                            />
+                            <RoleCard 
+                                selected={selectedRole === 'ADMIN'} 
+                                onClick={() => setValue('role', 'ADMIN')} 
+                                icon={FaShieldAlt} 
+                                label="Staff" 
+                            />
+                        </div>
+                    </div>
 
-                <p className="mt-6 text-center text-sm text-gray-500">
-                    Déjà un compte ? <Link href="/login" className="text-green-600 hover:underline font-medium">Se connecter</Link>
-                </p>
-            </form>
+                    {/* CHAMP NOM */}
+                    <div>
+                        <div className="relative">
+                            <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                {...register("name")}
+                                disabled={isSubmitting}
+                                placeholder="Nom complet ou Coopérative"
+                                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all ${errors.name ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.name && <p className="text-red-500 text-xs mt-1 ml-1">{errors.name.message}</p>}
+                    </div>
+
+                    {/* CHAMP EMAIL */}
+                    <div>
+                        <div className="relative">
+                            <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="email"
+                                {...register("email")}
+                                disabled={isSubmitting}
+                                placeholder="Email"
+                                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all ${errors.email ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.email && <p className="text-red-500 text-xs mt-1 ml-1">{errors.email.message}</p>}
+                    </div>
+
+                    {/* CHAMP MOT DE PASSE */}
+                    <div>
+                        <div className="relative">
+                            <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="password"
+                                {...register("password")}
+                                disabled={isSubmitting}
+                                placeholder="Mot de passe"
+                                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 outline-none transition-all ${errors.password ? 'border-red-500' : 'border-gray-200'}`}
+                            />
+                        </div>
+                        {errors.password && <p className="text-red-500 text-xs mt-1 ml-1">{errors.password.message}</p>}
+                    </div>
+
+                    {/* CHAMP CODE SECRET ADMIN (Conditionnel) */}
+                    {selectedRole === 'ADMIN' && (
+                        <div className="relative animate-in slide-in-from-top-2 duration-300">
+                            <FaShieldAlt className="absolute left-3 top-1/2 -translate-y-1/2 text-red-500" />
+                            <input
+                                type="password"
+                                {...register("adminSecret")}
+                                disabled={isSubmitting}
+                                placeholder="Code de sécurité Administrateur"
+                                className={`w-full pl-10 pr-4 py-3 border-2 bg-red-50 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all ${errors.adminSecret ? 'border-red-500' : 'border-red-100'}`}
+                            />
+                            <p className="text-[10px] text-red-500 mt-1 ml-2 font-bold uppercase tracking-wider">Zone réservée au staff</p>
+                            {errors.adminSecret && <p className="text-red-500 text-xs mt-1 ml-1">{errors.adminSecret.message}</p>}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className={`w-full py-4 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95 disabled:bg-gray-400 flex items-center justify-center gap-2 ${
+                            selectedRole === 'ADMIN' ? 'bg-red-600 hover:bg-red-700 shadow-red-100' : 'bg-green-600 hover:bg-green-700 shadow-green-100'
+                        }`}
+                    >
+                        {isSubmitting ? <FaSpinner className="animate-spin" /> : <FaUserPlus />}
+                        {isSubmitting ? 'Création...' : selectedRole === 'ADMIN' ? 'Créer compte Admin' : 'Créer mon compte'}
+                    </button>
+                </form>
+
+                <div className="mt-8 text-center">
+                    <p className="text-gray-600 text-sm">
+                        Déjà membre ?{' '}
+                        <Link href="/login" className="text-green-600 font-bold hover:text-green-800 transition-colors">
+                            Connectez-vous ici
+                        </Link>
+                    </p>
+                </div>
+            </div>
         </div>
     );
 }
 
-// Composant utilitaire pour la sélection du rôle par radio/carte
-const RoleRadio: React.FC<{
-    roleValue: Role,
-    currentRole: Role,
-    setRole: (role: Role) => void,
-    icon: React.ElementType,
-    label: string,
-    disabled: boolean
-}> = ({ roleValue, currentRole, setRole, icon: Icon, label, disabled }) => {
-    const isSelected = roleValue === currentRole;
-
+// Composant Interne pour les cartes de rôle
+function RoleCard({ selected, onClick, icon: Icon, label }: { selected: boolean, onClick: () => void, icon: any, label: string }) {
     return (
-        <div 
-            className={`flex-1 p-4 border rounded-lg cursor-pointer transition-colors ${
-                isSelected 
-                    ? 'border-green-600 bg-green-50 shadow-md' 
-                    : 'border-gray-300 bg-white hover:bg-gray-50'
-            } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-            onClick={() => !disabled && setRole(roleValue)}
+        <button
+            type="button"
+            onClick={onClick}
+            className={`flex-1 flex flex-col items-center p-3 rounded-xl border-2 transition-all duration-300 ${
+                selected 
+                ? 'border-green-600 bg-green-50 text-green-700 shadow-sm scale-105' 
+                : 'border-gray-100 bg-white text-gray-400 hover:border-gray-200'
+            }`}
         >
-            <div className="flex items-center gap-2">
-                <Icon className={`text-xl ${isSelected ? 'text-green-600' : 'text-gray-500'}`} />
-                <span className={`font-semibold text-sm ${isSelected ? 'text-green-700' : 'text-gray-800'}`}>{label}</span>
-            </div>
-        </div>
+            <Icon size={20} className={`mb-1 ${selected ? 'text-green-600' : 'text-gray-300'}`} />
+            <span className="text-[9px] font-black uppercase tracking-tighter">{label}</span>
+        </button>
     );
-};
+}

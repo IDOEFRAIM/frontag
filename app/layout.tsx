@@ -6,6 +6,7 @@ import { AuthProvider } from '@/hooks/useAuth'; // 👈 NOUVEAU: Importation du 
 import { CartProvider } from '@/context/CartContext'; 
 import { NetworkStatus } from '@/components/system/networkStatus';
 import SyncStatusIndicator from '@/components/system/syncStatus';
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +53,7 @@ export default function RootLayout({
           <CartProvider> 
             
             {/* Composants globaux système */}
+            <Toaster position="top-center" />
             <NetworkStatus />
             <SyncStatusIndicator />
 

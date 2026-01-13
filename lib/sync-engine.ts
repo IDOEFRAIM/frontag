@@ -1,82 +1,64 @@
-// lib/syncService.ts
-import { db, OfflineOrder } from './db';
+'use client'
 
-/**
- * Tente d'envoyer une commande unique au serveur
- */
+import { localDb, type OfflineOrder } from './dexie';
+import { syncOrderWithServer } from '@/services/orders.service';
+
 async function syncSingleOrder(order: OfflineOrder): Promise<boolean> {
+  if (!localDb) return false;
+  
   try {
     const formData = new FormData();
 
-    // 1. On sépare les données texte du fichier audio
+    // On s'assure que les données envoyées correspondent à ce que Prisma attend
     const orderMetadata = {
       productIds: order.productIds,
       totalAmount: order.totalAmount,
-      customer: {
-        name: order.customerName,
-        phone: order.customerPhone,
-        city: order?.city || 'Non spécifié'
-      },
-      delivery: {
-        lat: order.gpsLat,
-        lng: order.gpsLng,
-        text: order.deliveryDesc
-      },
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      deliveryDesc: order.deliveryDesc,
+      gpsLat: order.gpsLat,
+      gpsLng: order.gpsLng,
       createdAt: order.createdAt
     };
 
-    // 2. On ajoute le JSON
     formData.append('data', JSON.stringify(orderMetadata));
 
-    // 3. On ajoute le fichier Audio (si présent)
     if (order.voiceNoteBlob) {
-      // On donne un nom unique au fichier : "voice_ID_TIMESTAMP.webm"
-      const fileName = `voice_${order.id || 'new'}_${Date.now()}.webm`;
-      formData.append('voiceNote', order.voiceNoteBlob, fileName);
+      // Conversion sécurisée pour l'envoi multipart
+      formData.append('voiceNote', order.voiceNoteBlob, `voice_${Date.now()}.webm`);
     }
 
-    // 4. Envoi au serveur (Adapter l'URL selon ton API)
-    const response = await fetch('/api/orders/sync', {
-      method: 'POST',
-      body: formData, // Pas de Header 'Content-Type', le navigateur le gère pour FormData
-    });
-
-    if (!response.ok) {
-      throw new Error(`Erreur serveur: ${response.statusText}`);
-    }
-
-    return true; // Succès
-
+    // Server Action
+    const result = await syncOrderWithServer(formData);
+    return result.success;
   } catch (error) {
-    console.error("Échec sync commande:", error);
-    return false; // Échec
+    console.error("❌ Erreur lors de l'envoi au serveur:", error);
+    return false;
   }
 }
 
-/**
- * Fonction principale : Traite toute la file d'attente
- */
 export async function processSyncQueue() {
-  // 1. Récupérer toutes les commandes NON synchronisées
-  const pendingOrders = await db.offlineOrders
-    .filter(order => !order.synced)
+  if (!localDb) return { syncedCount: 0, errors: 0 };
+
+  // Dexie 7 : Utilise 0 pour false si tu as indexé comme un entier, 
+  // ou false si c'est un booléen. 
+  const pendingOrders = await localDb.offlineOrders
+    .where('synced')
+    .equals(0) // On assume 0 = non synchronisé
     .toArray();
 
   if (pendingOrders.length === 0) return { syncedCount: 0, errors: 0 };
 
-  console.log(`🔄 Démarrage synchro : ${pendingOrders.length} commandes en attente.`);
-
   let syncedCount = 0;
   let errors = 0;
 
-  // 2. Traiter les commandes une par une (séquentiel pour éviter de surcharger le réseau mobile)
+  // Utilisation de for...of pour garantir l'ordre et la gestion des erreurs
   for (const order of pendingOrders) {
     const success = await syncSingleOrder(order);
 
     if (success && order.id) {
-      // 3. Marquer comme synchronisé dans Dexie
-      // On ne supprime pas tout de suite pour garder un historique local
-      await db.offlineOrders.update(order.id, { synced: true });
+      // IMPORTANT : Mettre à jour l'ID local pour marquer le succès
+      await localDb.offlineOrders.update(order.id, { synced: true });
       syncedCount++;
     } else {
       errors++;

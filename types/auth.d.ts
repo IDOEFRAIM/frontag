@@ -1,8 +1,7 @@
 /**
  * Définit les rôles utilisateurs principaux dans la plateforme.
  */
-export type Role = 'buyer' | 'producer' | 'admin';
-
+export type Role = 'USER' | 'PRODUCER' | 'ADMIN';
 /**
  * Interface pour les données de géolocalisation (utilisée par plusieurs services).
  */

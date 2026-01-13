@@ -1,53 +1,64 @@
-// hooks/useSyncEngine.ts
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useNetwork } from './useNetwork'; // Ton hook existant
-import { processSyncQueue } from '@/lib/sync-engine';
+import { useNetwork } from './useNetwork'; 
+import { processSyncQueue } from '@/lib/syncService'; // On pointe vers ton nouveau service
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { localDb } from '@/lib/dexie'; // Utilisation de localDb au lieu de db
 
 export function useSyncEngine() {
   const isOnline = useNetwork();
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Surveille le nombre de commandes en attente (Juste pour l'info UI)
+  // 1. SURVEILLANCE DES COMMANDES EN ATTENTE
+  // useLiveQuery est parfait pour mettre à jour l'UI dès qu'une commande est ajoutée
   const pendingCount = useLiveQuery(
-    () => db.offlineOrders.where('synced').equals(0).count()
-  ) || 0;
+    async () => {
+      if (!localDb) return 0;
+      // On utilise l'index 'synced'. 0 = false (non synchronisé)
+      return await localDb.offlineOrders.where('synced').equals(0).count();
+    },
+    [] // Dépendances vides pour ce query interne
+  ) ?? 0;
 
+  // 2. LOGIQUE DE SYNCHRONISATION AUTOMATIQUE
   useEffect(() => {
-    // Si on est HORS LIGNE, on ne fait rien
-    if (!isOnline) return;
-
-    // Si on est DÉJÀ en train de sync, on évite les doublons
-    if (isSyncing) return;
+    // Ne rien faire si on est offline ou déjà en cours de synchro
+    if (!isOnline || isSyncing) return;
 
     const runSync = async () => {
-      // On vérifie s'il y a quelque chose à envoyer
-      const count = await db.offlineOrders.where('synced').equals(0).count();
-      
-      if (count > 0) {
-        setIsSyncing(true);
-        try {
-            // Lancer la synchro
-            const result = await processSyncQueue();
-            
-            if (result.syncedCount > 0) {
-                // Ici tu pourrais mettre un Toast / Notification
-                console.log(`✅ Succès : ${result.syncedCount} commandes envoyées !`);
-                // alert(`Connexion retrouvée : ${result.syncedCount} commandes envoyées au serveur.`);
-            }
-        } finally {
-            setIsSyncing(false);
+      if (!localDb) return;
+
+      try {
+        // Vérification rapide avant de lancer le service
+        const count = await localDb.offlineOrders.where('synced').equals(0).count();
+        
+        if (count > 0) {
+          setIsSyncing(true);
+          
+          // Appel du service qui traite la file d'attente
+          const result = await processSyncQueue();
+          
+          if (result.syncedCount > 0) {
+            console.log(`🚀 Moteur de Synchro : ${result.syncedCount} commandes traitées.`);
+          }
+
+          if (result.errors > 0) {
+            console.warn(`⚠️ Moteur de Synchro : ${result.errors} échecs.`);
+          }
         }
+      } catch (err) {
+        console.error("❌ Erreur critique dans le moteur de synchro:", err);
+      } finally {
+        setIsSyncing(false);
       }
     };
 
     runSync();
 
-    // On déclenche l'effet quand : 
-    // 1. Le statut "isOnline" passe à true
-    // 2. Ou quand le nombre de pendingCount change (ex: l'utilisateur ajoute une commande alors qu'il est déjà online)
-  }, [isOnline, pendingCount]); 
+    // L'effet se déclenche quand la connexion revient (isOnline) 
+    // ou quand une nouvelle commande arrive en local (pendingCount)
+  }, [isOnline, pendingCount, isSyncing]); 
 
   return { isSyncing, pendingCount };
 }

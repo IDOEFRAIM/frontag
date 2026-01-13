@@ -1,18 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-
-const THEME = {
-    play: '#1A237E',   // Indigo
-    pause: '#A63C06',  // Ocre
-    bg: '#F5F5F5',
-    progress: '#2E7D32', // Vert
-    text: '#333'
-};
+import { FaPlay, FaPause, FaTrash } from 'react-icons/fa';
 
 interface AudioPlayerProps {
-    src: string | Blob; // Accepte une URL ou un fichier brut (Blob)
-    onDelete?: () => void; // Optionnel : bouton supprimer
+    src: string | Blob;
+    onDelete?: () => void;
 }
 
 export default function AudioPlayer({ src, onDelete }: AudioPlayerProps) {
@@ -22,11 +15,9 @@ export default function AudioPlayer({ src, onDelete }: AudioPlayerProps) {
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     
-    // Convertir le Blob en URL si nécessaire
     const audioSrc = typeof src === 'string' ? src : URL.createObjectURL(src);
 
     useEffect(() => {
-        // Nettoyage de l'URL objet si c'était un Blob (pour la mémoire)
         return () => {
             if (typeof src !== 'string') {
                 URL.revokeObjectURL(audioSrc);
@@ -36,7 +27,6 @@ export default function AudioPlayer({ src, onDelete }: AudioPlayerProps) {
 
     const togglePlay = () => {
         if (!audioRef.current) return;
-
         if (isPlaying) {
             audioRef.current.pause();
         } else {
@@ -64,13 +54,11 @@ export default function AudioPlayer({ src, onDelete }: AudioPlayerProps) {
         if (audioRef.current) audioRef.current.currentTime = 0;
     };
 
-    // Permet de cliquer sur la barre pour avancer
     const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!audioRef.current) return;
         const width = e.currentTarget.clientWidth;
         const clickX = e.nativeEvent.offsetX;
         const newTime = (clickX / width) * audioRef.current.duration;
-        
         audioRef.current.currentTime = newTime;
         setProgress((clickX / width) * 100);
     };
@@ -82,91 +70,48 @@ export default function AudioPlayer({ src, onDelete }: AudioPlayerProps) {
     };
 
     return (
-        <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '15px', 
-            backgroundColor: 'white', 
-            padding: '10px 15px', 
-            borderRadius: '30px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            width: '100%',
-            maxWidth: '400px',
-            border: '1px solid #eee'
-        }}>
-            {/* ÉLÉMENT AUDIO CACHÉ */}
+        <div className="flex items-center gap-4 bg-white p-3 rounded-[2rem] shadow-sm border border-slate-100 w-full max-w-md">
+            {/* AUDIO CACHÉ */}
             <audio 
                 ref={audioRef} 
                 src={audioSrc} 
                 onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleTimeUpdate}
                 onEnded={handleEnded}
+                onLoadedMetadata={handleTimeUpdate}
             />
 
-            {/* BOUTON PLAY/PAUSE */}
+            {/* BOUTON PLAY/PAUSE (Indigo pour la tech) */}
             <button 
-                type="button"
                 onClick={togglePlay}
-                style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    border: 'none',
-                    backgroundColor: isPlaying ? THEME.pause : THEME.play,
-                    color: 'white',
-                    fontSize: '1.2rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                }}
+                className="w-10 h-10 flex items-center justify-center rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-md shrink-0"
             >
-                {isPlaying ? '⏸' : '▶'}
+                {isPlaying ? <FaPause size={12} /> : <FaPlay size={12} className="ml-1" />}
             </button>
 
-            {/* BARRE DE PROGRESSION & TEMPS */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {/* BARRE DE PROGRESSION (Organique) */}
+            <div className="flex-1 flex flex-col justify-center gap-1">
                 <div 
+                    className="h-2 bg-slate-100 rounded-full cursor-pointer overflow-hidden relative"
                     onClick={handleSeek}
-                    style={{ 
-                        height: '8px', 
-                        backgroundColor: '#e0e0e0', 
-                        borderRadius: '4px', 
-                        cursor: 'pointer', 
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}
                 >
-                    <div style={{ 
-                        width: `${progress}%`, 
-                        height: '100%', 
-                        backgroundColor: THEME.progress,
-                        transition: 'width 0.1s linear'
-                    }} />
+                    <div 
+                        className="h-full bg-green-500 rounded-full transition-all duration-100 ease-linear"
+                        style={{ width: `${progress}%` }}
+                    />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#666' }}>
+                <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                     <span>{formatTime(currentTime)}</span>
                     <span>{formatTime(duration || 0)}</span>
                 </div>
             </div>
 
-            {/* BOUTON SUPPRIMER (OPTIONNEL) */}
+            {/* BOUTON SUPPRIMER (Optionnel) */}
             {onDelete && (
-                <button
-                    type="button"
+                <button 
                     onClick={onDelete}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#999',
-                        cursor: 'pointer',
-                        fontSize: '1rem',
-                        padding: '5px'
-                    }}
-                    title="Supprimer la note"
+                    className="p-2 text-slate-300 hover:text-red-500 transition-colors"
                 >
-                    ❌
+                    <FaTrash size={14} />
                 </button>
             )}
         </div>

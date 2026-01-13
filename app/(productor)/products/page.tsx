@@ -1,241 +1,194 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+import { getMyProducts, deleteProduct } from '@/services/producer.service';
 import { 
-  FaBox, 
-  FaPlus, 
-  FaEdit, 
-  FaTrash,
-  FaSearch,
-  FaFilter,
-  FaChevronLeft,
-  FaChevronRight 
+  FaPlus, FaEdit, FaTrash, FaShareAlt, FaBoxOpen, FaWhatsapp, FaSearch, FaFilter
 } from 'react-icons/fa';
-import Image from 'next/image';
+import { toast } from 'react-hot-toast';
 
-// --- Types de Données Simples ---
-interface Product {
-  id: string;
-  name: string;
-  category: 'Légumes' | 'Fruits' | 'Épicerie' | 'Boulangerie';
-  image: string;
-  stock: number;
-  price: number;
-  status: 'Actif' | 'Inactif' | 'Épuisé';
-  updatedAt: string;
-}
+export default function ProducerCatalogue() {
+  const { user } = useAuth();
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
 
-// --- Données Simples (À remplacer par l'API) ---
-const mockProducts: Product[] = [
-  { id: 'p001', name: 'Tomates Anciennes', category: 'Légumes', image: '/images/tomates.jpg', stock: 55, price: 3.50, status: 'Actif', updatedAt: '2025-12-14' },
-  { id: 'p002', name: 'Miel de Lavande Bio', category: 'Épicerie', image: '/images/miel.jpg', stock: 12, price: 9.90, status: 'Actif', updatedAt: '2025-12-10' },
-  { id: 'p003', name: 'Oeufs de Ferme (x6)', category: 'Épicerie', image: '/images/oeufs.jpg', stock: 0, price: 4.20, status: 'Épuisé', updatedAt: '2025-12-15' },
-  { id: 'p004', name: 'Pommes Golden', category: 'Fruits', image: '/images/pommes.jpg', stock: 210, price: 2.10, status: 'Actif', updatedAt: '2025-12-08' },
-  { id: 'p005', name: 'Pain au Levain', category: 'Boulangerie', image: '/images/pain.jpg', stock: 4, price: 5.50, status: 'Inactif', updatedAt: '2025-12-01' },
-];
+  useEffect(() => {
+    if (user?.id) {
+      loadProducts();
+    }
+  }, [user?.id]);
 
-const ITEMS_PER_PAGE = 5;
+  const loadProducts = async () => {
+    if (!user?.id) return;
+    const res = await getMyProducts(user.id);
+    if (res.success && res.data) {
+      setProducts(res.data);
+    }
+    setLoading(false);
+  };
 
-// --- Composant Principal ---
-export default function ProductorProductsPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  const categories = useMemo(() => {
-    const cats = new Set(mockProducts.map(p => p.category));
-    return ['Toutes', ...Array.from(cats)];
-  }, []);
-
-  // Logique de filtrage et recherche
-  const filteredProducts = useMemo(() => {
-    return mockProducts.filter(product => {
-      // 1. Recherche par nom
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // 2. Filtrage par catégorie
-      const matchesCategory = filterCategory === '' || filterCategory === 'Toutes' || product.category === filterCategory;
-      
-      return matchesSearch && matchesCategory;
-    });
-  }, [searchTerm, filterCategory]);
-
-  // Logique de pagination
-  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-  const paginatedProducts = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-    return filteredProducts.slice(start, end);
-  }, [filteredProducts, currentPage]);
-
-  // --- Fonctions d'Action ---
-  const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Êtes-vous sûr de vouloir supprimer le produit : ${name} ? Cette action est irréversible.`)) {
-      console.log(`Suppression du produit ${id}`);
-      // Logique API ici
+  const handleDelete = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment retirer ce produit du catalogue ?")) return;
+    
+    if (!user?.id) return;
+    const res = await deleteProduct(id, user.id);
+    if (res.success) {
+      toast.success("Produit retiré");
+      loadProducts();
+    } else {
+      toast.error("Erreur lors de la suppression");
     }
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage > 0 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
+  const handleShare = (product: any) => {
+    const text = `Découvrez mon produit *${product.categoryLabel}* à ${product.price} FCFA sur Vital Engine !`;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
   };
+
+  const filteredProducts = products.filter(p => 
+    p.categoryLabel.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+      <div className="animate-pulse flex flex-col items-center">
+        <div className="w-12 h-12 bg-slate-200 rounded-full mb-4"></div>
+        <div className="h-4 w-32 bg-slate-200 rounded"></div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 font-sans pb-24">
       
-      {/* En-tête de la Page */}
-      <div className="flex justify-between items-center border-b pb-4">
-        <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
-          <FaBox className="text-green-600"/> Mes Produits
-        </h1>
+      {/* HEADER */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">
+            Mon Catalogue
+          </h1>
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mt-1">
+            Vos produits en vente
+          </p>
+        </div>
+
         <Link 
-          href="/products/add" 
-          className="flex items-center gap-2 bg-green-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-700 transition-colors shadow-md"
+          href="/products/add"
+          className="flex items-center justify-center gap-2 bg-green-600 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs hover:bg-green-700 transition-all shadow-lg shadow-green-200 hover:scale-105"
         >
-          <FaPlus /> Ajouter un Produit
+          <FaPlus /> Nouveau Produit
         </Link>
       </div>
 
-      {/* Barre de Filtre et Recherche */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4">
-        
-        {/* Recherche */}
-        <div className="relative flex-1">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher par nom..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1); // Réinitialiser la page à la recherche
-            }}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-          />
+      {/* SEARCH & FILTER */}
+      <div className="bg-white p-2 rounded-[1.5rem] shadow-sm border border-slate-100 mb-8 flex items-center gap-2 max-w-md">
+        <div className="p-3 bg-slate-50 rounded-full text-slate-400">
+            <FaSearch />
         </div>
-        
-        {/* Filtre Catégorie */}
-        <div className="relative">
-          <FaFilter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <select
-            value={filterCategory}
-            onChange={(e) => {
-              setFilterCategory(e.target.value);
-              setCurrentPage(1); // Réinitialiser la page au changement de filtre
-            }}
-            className="appearance-none w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg bg-white focus:ring-green-500 focus:border-green-500"
-          >
-            {categories.map(cat => (
-              <option key={cat} value={cat === 'Toutes' ? '' : cat}>{cat}</option>
-            ))}
-          </select>
-        </div>
+        <input 
+            type="text" 
+            placeholder="Rechercher un produit..." 
+            className="flex-1 bg-transparent font-bold text-slate-700 outline-none placeholder:text-slate-300"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+        />
       </div>
 
-      {/* Tableau des Produits */}
-      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Produit</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Catégorie</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prix</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {paginatedProducts.map((product) => (
-                <tr key={product.id} className="hover:bg-gray-50">
-                  
-                  {/* Produit (Nom) */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {product.name}
-                  </td>
-                  
-                  {/* Catégorie */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.category}
-                  </td>
+      {/* GRID */}
+      {filteredProducts.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-slate-100 hover:shadow-xl transition-all duration-300 group relative overflow-hidden">
+              
+              {/* Status Badge */}
+              <div className="absolute top-6 right-6 z-10">
+                <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                    product.quantityForSale > 0 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                    {product.quantityForSale > 0 ? 'En Vente' : 'Épuisé'}
+                </span>
+              </div>
 
-                  {/* Prix */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
-                    {product.price.toFixed(2)} €
-                  </td>
-                  
-                  {/* Stock */}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.stock}
-                  </td>
-                  
-                  {/* Statut */}
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      product.status === 'Actif' ? 'bg-green-100 text-green-800' :
-                      product.status === 'Inactif' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </td>
-                  
-                  {/* Actions */}
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                    <Link href={`/products/${product.id}/edit`} title="Modifier" className="text-indigo-600 hover:text-indigo-900 p-2 rounded-md hover:bg-gray-100">
-                      <FaEdit size={16} />
-                    </Link>
-                    <button title="Supprimer" onClick={() => handleDelete(product.id, product.name)} className="text-red-600 hover:text-red-900 p-2 rounded-md hover:bg-gray-100">
-                      <FaTrash size={16} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          
-          {paginatedProducts.length === 0 && (
-            <div className="p-6 text-center text-gray-500">
-              Aucun produit trouvé.
+              {/* Image / Icon Placeholder */}
+              <div className="h-40 bg-slate-50 rounded-[2rem] mb-6 flex items-center justify-center relative overflow-hidden">
+                {product.images && product.images.length > 0 ? (
+                    <img src={product.images[0]} alt={product.categoryLabel} className="w-full h-full object-cover" />
+                ) : (
+                    <FaBoxOpen className="text-6xl text-slate-200" />
+                )}
+                
+                {/* Price Tag Overlay */}
+                <div className="absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur-sm text-white px-4 py-2 rounded-xl">
+                    <span className="text-lg font-black tracking-tighter">{product.price} <span className="text-xs font-normal text-slate-300">FCFA</span></span>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="mb-6">
+                <h3 className="text-xl font-black text-slate-900 italic leading-tight mb-1">
+                    {product.categoryLabel}
+                </h3>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-wide">
+                    Stock: {product.quantityForSale} {product.unit}
+                </p>
+                {product.localNames && (
+                    <div className="flex gap-2 mt-2 overflow-x-auto no-scrollbar">
+                        {Object.entries(product.localNames).map(([lang, name]: any) => (
+                            <span key={lang} className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-md uppercase">
+                                {lang}: {name}
+                            </span>
+                        ))}
+                    </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="grid grid-cols-3 gap-2">
+                <Link 
+                    href={`/products/${product.id}`}
+                    className="py-3 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center hover:bg-slate-900 hover:text-white transition-colors"
+                    title="Modifier"
+                >
+                    <FaEdit />
+                </Link>
+                <button 
+                    onClick={() => handleShare(product)}
+                    className="py-3 rounded-xl bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-600 hover:text-white transition-colors"
+                    title="Partager sur WhatsApp"
+                >
+                    <FaWhatsapp size={18} />
+                </button>
+                <button 
+                    onClick={() => handleDelete(product.id)}
+                    className="py-3 rounded-xl bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors"
+                    title="Supprimer"
+                >
+                    <FaTrash />
+                </button>
+              </div>
+
             </div>
-          )}
+          ))}
         </div>
-        
-        {/* Pagination */}
-        {filteredProducts.length > ITEMS_PER_PAGE && (
-          <div className="px-6 py-3 bg-gray-50 flex justify-between items-center border-t border-gray-200">
-            <p className="text-sm text-gray-700">
-              Affichage de {((currentPage - 1) * ITEMS_PER_PAGE) + 1} à {Math.min(currentPage * ITEMS_PER_PAGE, filteredProducts.length)} sur {filteredProducts.length} résultats
-            </p>
-            <nav className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                <FaChevronLeft size={14} />
-              </button>
-              
-              <span className="text-sm font-medium">Page {currentPage} / {totalPages}</span>
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                <FaChevronRight size={14} />
-              </button>
-            </nav>
-          </div>
-        )}
-
-      </div>
-
+      ) : (
+        <div className="flex flex-col items-center justify-center py-20 text-slate-300 border-2 border-dashed border-slate-200 rounded-[3rem]">
+            <FaBoxOpen className="text-6xl mb-4 opacity-20" />
+            <p className="text-lg font-black uppercase tracking-widest">Catalogue Vide</p>
+            <p className="text-xs font-medium mt-2 mb-6">Commencez par ajouter votre premier produit</p>
+            <Link 
+                href="/products/add"
+                className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black uppercase text-xs hover:bg-slate-800 transition-all"
+            >
+                Ajouter un produit
+            </Link>
+        </div>
+      )}
     </div>
   );
 }

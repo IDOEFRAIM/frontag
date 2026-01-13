@@ -1,280 +1,142 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-    FaWarehouse, FaSearch, FaFilter, FaArrowUp, 
-    FaArrowDown, FaSort, FaBoxOpen, FaUser
+    FaWarehouse, FaSearch, FaBoxOpen, FaExclamationTriangle, 
+    FaArrowRight, FaTag, FaUserCircle, FaSortAmountDown
 } from 'react-icons/fa';
 
-// --- TYPES ---
-type ProductStatus = 'live' | 'archived' | 'draft' | 'pending';
-
-type ProductItem = {
-    id: string;
-    name: string;
-    producerId: string;
-    producerName: string;
-    stockLevel: number; // Quantité en stock
-    price: number;
-    unit: string;
-    status: ProductStatus;
-    lastUpdate: string;
-};
-
-// --- DONNÉES FICTIVES ---
-const mockProducts: ProductItem[] = [
-    {
-        id: 'ITM-001',
-        name: 'Tomates Fraîches',
-        producerId: 'PROD-001',
-        producerName: 'Ferme Bio Alpha',
-        stockLevel: 150,
-        price: 500,
-        unit: 'Kg',
-        status: 'live',
-        lastUpdate: 'Aujourd\'hui',
-    },
-    {
-        id: 'ITM-002',
-        name: 'Sacs de Maïs',
-        producerId: 'PROD-001',
-        producerName: 'Ferme Bio Alpha',
-        stockLevel: 50,
-        price: 12500,
-        unit: 'Sac',
-        status: 'live',
-        lastUpdate: 'Hier',
-    },
-    {
-        id: 'ITM-003',
-        name: 'Oignons Rouges (Gros)',
-        producerId: 'PROD-003',
-        producerName: 'Jardin de Mariama',
-        stockLevel: 0, // Épuisé
-        price: 600,
-        unit: 'Kg',
-        status: 'archived',
-        lastUpdate: '01/12/2025',
-    },
-    {
-        id: 'ITM-004',
-        name: 'Mangues Séchées',
-        producerId: 'PROD-004',
-        producerName: 'AgriTech X',
-        stockLevel: 20,
-        price: 1500,
-        unit: 'sachet',
-        status: 'pending', // En attente de validation
-        lastUpdate: '05/12/2025',
-    },
-    {
-        id: 'ITM-005',
-        name: 'Piment du Sahel',
-        producerId: 'PROD-003',
-        producerName: 'Jardin de Mariama',
-        stockLevel: 5,
-        price: 1000,
-        unit: 'Kg',
-        status: 'live',
-        lastUpdate: 'Aujourd\'hui',
-    },
+// --- MOCK DATA (Intégrée pour l'exemple) ---
+const mockProducts = [
+    { id: 'ITM-001', name: 'Tomates Fraîches', producerName: 'Ferme Bio Alpha', stockLevel: 150, price: 500, unit: 'Kg', status: 'live' },
+    { id: 'ITM-002', name: 'Sacs de Maïs', producerName: 'Ferme Bio Alpha', stockLevel: 50, price: 12500, unit: 'Sac', status: 'live' },
+    { id: 'ITM-003', name: 'Oignons Rouges', producerName: 'Jardin de Mariama', stockLevel: 0, price: 600, unit: 'Kg', status: 'archived' },
+    { id: 'ITM-004', name: 'Mangues Séchées', producerName: 'AgriTech X', stockLevel: 20, price: 1500, unit: 'sachet', status: 'pending' },
 ];
 
-// --- TYPES DE FILTRE ---
-type SortKey = 'name' | 'stock' | 'price' | 'update';
-type FilterStatus = 'all' | ProductStatus;
-
-// --- HELPERS ---
-const formatCurrency = (amount: number) => amount.toLocaleString('fr-FR') + ' F';
-
-const getStatusBadge = (status: ProductStatus) => {
-    switch (status) {
-        case 'live':
-            return <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">En Ligne</span>;
-        case 'pending':
-            return <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded-full">À Valider</span>;
-        case 'archived':
-            return <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">Épuisé/Archivé</span>;
-        case 'draft':
-            return <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">Brouillon</span>;
-    }
-};
-
-// --- COMPOSANT DE LA PAGE ---
-
-export default function StockPage() {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-    const [sortBy, setSortBy] = useState<SortKey>('update');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-
-    // --- LOGIQUE DE FILTRAGE ET DE TRI ---
-    const displayedProducts = useMemo(() => {
-        let filtered = mockProducts;
-
-        // 1. Filtrage par terme de recherche
-        if (searchTerm) {
-            filtered = filtered.filter(p =>
-                p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                p.producerName.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // 2. Filtrage par statut
-        if (filterStatus !== 'all') {
-            filtered = filtered.filter(p => p.status === filterStatus);
-        }
-
-        // 3. Tri
-        return filtered.sort((a, b) => {
-            let comparison = 0;
-
-            if (sortBy === 'name') {
-                comparison = a.name.localeCompare(b.name);
-            } else if (sortBy === 'stock') {
-                comparison = a.stockLevel - b.stockLevel;
-            } else if (sortBy === 'price') {
-                comparison = a.price - b.price;
-            } 
-            // Tri par date simple (ici, on ne gère pas la date, on se base sur l'ID pour simuler)
-            else if (sortBy === 'update') { 
-                comparison = a.id.localeCompare(b.id);
-            }
-
-            return sortOrder === 'asc' ? comparison : comparison * -1;
-        });
-    }, [searchTerm, filterStatus, sortBy, sortOrder]);
-
-
-    // 4. Gestion du changement de tri
-    const handleSortChange = (key: SortKey) => {
-        if (sortBy === key) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortBy(key);
-            setSortOrder('desc'); 
-        }
-    };
-
-    const SortIcon = ({ keyName }: { keyName: SortKey }) => {
-        if (sortBy !== keyName) return <FaSort className="text-gray-400 text-xs" />;
-        return sortOrder === 'asc' ? <FaArrowUp className="text-green-600 text-xs" /> : <FaArrowDown className="text-green-600 text-xs" />;
-    };
-
+export default function RadicalStockPage() {
+    const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState('all');
 
     return (
-        <div className="bg-gray-50 pb-6">
+        <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-12 pb-32 font-sans">
             
-            {/* 1. HEADER & RECHERCHE */}
-            <div className="bg-white p-4 sticky top-16 md:top-20 z-10 shadow-sm border-b border-gray-100">
-                <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-                    <FaWarehouse className="text-green-700" /> Gestion des Stocks
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">Supervision du catalogue et des niveaux de stock.</p>
-                
-                {/* Barre de Recherche */}
-                <div className="relative mt-4">
-                    <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
+            {/* --- HEADER : LOGISTICS CONTROL --- */}
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-10 mb-20">
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+                    <div className="flex items-center gap-3 text-[10px] font-black text-emerald-600 uppercase tracking-[0.4em] mb-4">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600"></span>
+                        </span>
+                        Inventory Real-Time
+                    </div>
+                    <h1 className="text-7xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">
+                        STOCK<span className="text-slate-300">.</span>HUB
+                    </h1>
+                </motion.div>
+
+                {/* RECHERCHE BRUTALISTE */}
+                <div className="relative w-full md:w-96 group">
+                    <input 
                         type="text"
-                        placeholder="Rechercher produit ou producteur..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 border border-gray-200 rounded-xl focus:ring-green-500 focus:border-green-500 transition-shadow"
+                        placeholder="Référence ou Produit..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="w-full bg-white border-4 border-slate-900 rounded-none py-6 pl-8 pr-16 text-xs font-black uppercase tracking-widest focus:ring-0 focus:translate-x-2 focus:-translate-y-2 transition-all shadow-[8px_8px_0px_0px_rgba(15,23,42,1)]"
                     />
+                    <FaSearch className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-900" />
                 </div>
+            </header>
+
+            {/* --- QUICK STATS --- */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                <StatCard label="Valeur Totale" value="4.2M" unit="FCFA" color="text-slate-900" />
+                <StatCard label="Ruptures" value="03" unit="Items" color="text-red-600" isAlert />
+                <StatCard label="Flux Sortant" value="+12%" unit="Hebdo" color="text-emerald-600" />
             </div>
 
-            <div className="p-4 space-y-6">
+            {/* --- FILTRES --- */}
+            <div className="flex gap-4 mb-12 overflow-x-auto no-scrollbar">
+                {['all', 'live', 'pending', 'archived'].map((f) => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f)}
+                        className={`px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                            filter === f ? 'bg-slate-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:text-slate-900 border border-slate-100'
+                        }`}
+                    >
+                        {f}
+                    </button>
+                ))}
+            </div>
 
-                {/* 2. FILTRES STATUT ET TRI */}
-                <div className="space-y-4">
-                    
-                    {/* Filtre par statut */}
-                    <div className="flex space-x-2 overflow-x-auto pb-1">
-                        {[
-                            { value: 'all', label: 'Tous', icon: FaBoxOpen },
-                            { value: 'live', label: 'En Ligne', icon: FaArrowUp },
-                            { value: 'pending', label: 'À Valider', icon: FaFilter },
-                            { value: 'archived', label: 'Épuisé/Archivé', icon: FaBoxOpen },
-                        ].map(({ value, label, icon: Icon }) => (
-                            <button
-                                key={value}
-                                onClick={() => setFilterStatus(value as FilterStatus)}
-                                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                                    filterStatus === value
-                                        ? 'bg-green-700 text-white shadow-md'
-                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-                                }`}
-                            >
-                                <Icon className="text-xs" /> {label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Barre de Tri */}
-                    <div className="flex justify-around bg-white p-3 rounded-xl shadow-sm text-xs font-medium text-gray-600 border border-gray-100">
-                        <button onClick={() => handleSortChange('name')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                            Produit <SortIcon keyName="name" />
-                        </button>
-                        <button onClick={() => handleSortChange('stock')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                            Stock <SortIcon keyName="stock" />
-                        </button>
-                        <button onClick={() => handleSortChange('price')} className="flex items-center gap-1 active:text-green-700 transition-colors">
-                            Prix <SortIcon keyName="price" />
-                        </button>
-                    </div>
-                </div>
-
-                {/* 3. LISTE DES PRODUITS */}
-                <h2 className="text-lg font-bold text-gray-800">
-                    Résultats ({displayedProducts.length})
-                </h2>
-
-                <div className="space-y-4">
-                    {displayedProducts.length === 0 ? (
-                        <div className="text-center py-10 text-gray-500">
-                            <p>Aucun produit ne correspond à ces critères de recherche/filtre.</p>
-                        </div>
-                    ) : (
-                        displayedProducts.map((item) => (
-                            // Lien vers les détails du produit
-                            <Link 
-                                key={item.id} 
-                                href={`/admin/stock/${item.id}`} 
-                                className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all hover:shadow-md active:scale-[0.99]"
-                            >
-                                <div className="flex justify-between items-start mb-3">
-                                    <h3 className="text-lg font-black text-gray-900">{item.name}</h3>
-                                    {getStatusBadge(item.status)}
-                                </div>
+            {/* --- STOCK LIST --- */}
+            <div className="grid grid-cols-1 gap-6">
+                <AnimatePresence>
+                    {mockProducts.map((product, index) => (
+                        <motion.div
+                            key={product.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            whileHover={{ scale: 1.01 }}
+                            className="group bg-white border border-white rounded-[3.5rem] p-8 shadow-sm hover:shadow-2xl transition-all"
+                        >
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
                                 
-                                <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-100">
-                                    {/* Info Producteur */}
-                                    <div className="flex items-center text-gray-600">
-                                        <FaUser className="text-xs mr-2" />
-                                        <Link href={`/admin/producers/${item.producerId}`} className="text-green-700 hover:underline font-medium text-xs">
-                                            {item.producerName}
-                                        </Link>
+                                {/* Info Produit */}
+                                <div className="flex items-center gap-8">
+                                    <div className={`w-20 h-20 rounded-[2.5rem] flex items-center justify-center text-2xl ${product.stockLevel === 0 ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-900'}`}>
+                                        {product.stockLevel === 0 ? <FaExclamationTriangle className="animate-pulse" /> : <FaBoxOpen />}
                                     </div>
-
-                                    {/* Stock et Prix */}
-                                    <div className="text-right space-y-1">
-                                        <p className="text-gray-800 font-bold">
-                                            {item.stockLevel} {item.unit}
-                                        </p>
-                                        <span className={`text-xs ${item.stockLevel === 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                                            {formatCurrency(item.price)}/{item.unit}
-                                        </span>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">{product.id}</p>
+                                        <h3 className="text-3xl font-black text-slate-900 italic uppercase tracking-tighter leading-none group-hover:text-emerald-600 transition-colors">
+                                            {product.name}
+                                        </h3>
+                                        <div className="flex items-center gap-2 mt-2 text-[10px] font-bold text-slate-400 uppercase">
+                                            <FaUserCircle /> {product.producerName}
+                                        </div>
                                     </div>
                                 </div>
-                            </Link>
-                        ))
-                    )}
-                </div>
 
+                                {/* Metrics */}
+                                <div className="flex flex-wrap items-center gap-12 lg:gap-20">
+                                    <div className="text-left">
+                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-2">Disponibilité</p>
+                                        <p className={`text-2xl font-black italic ${product.stockLevel < 10 ? 'text-red-600' : 'text-slate-900'}`}>
+                                            {product.stockLevel} <span className="text-[10px] not-italic opacity-40 uppercase">{product.unit}</span>
+                                        </p>
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-[9px] font-black text-slate-300 uppercase tracking-widest mb-2">Prix Unitaire</p>
+                                        <p className="text-2xl font-black italic text-slate-900 tracking-tighter">
+                                            {product.price.toLocaleString()} <span className="text-[10px] not-italic opacity-40 uppercase">FCFA</span>
+                                        </p>
+                                    </div>
+                                    <button className="w-16 h-16 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-all">
+                                        <FaArrowRight />
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
             </div>
+        </div>
+    );
+}
+
+function StatCard({ label, value, unit, color, isAlert }: any) {
+    return (
+        <div className="bg-white p-10 rounded-[3rem] shadow-sm border border-white relative overflow-hidden">
+            {isAlert && <div className="absolute top-0 right-0 w-24 h-24 bg-red-500/5 rounded-full -mr-10 -mt-10 blur-2xl" />}
+            <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em] mb-4">{label}</p>
+            <p className={`text-5xl font-black italic tracking-tighter ${color}`}>
+                {value} <span className="text-xs not-italic opacity-30 tracking-widest ml-1 uppercase">{unit}</span>
+            </p>
         </div>
     );
 }

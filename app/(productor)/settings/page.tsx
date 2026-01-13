@@ -7,6 +7,7 @@ import {
     FaEnvelope
 } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
+import { useForm, SubmitHandler } from 'react-hook-form';
 
 // --- TYPES ---
 type ProducerProfile = {
@@ -30,13 +31,19 @@ const mockProfile: ProducerProfile = {
 
 export default function SettingsPage() {
     const router = useRouter();
-    const [profile, setProfile] = useState<ProducerProfile>(mockProfile);
     const [isLoading, setIsLoading] = useState(false);
 
+    const { register, handleSubmit, watch, setValue } = useForm<ProducerProfile>({
+        defaultValues: mockProfile
+    });
+
+    const theme = watch('theme');
+
     // Simuler la sauvegarde des modifications du profil
-    const handleProfileUpdate = () => {
+    const onSubmit: SubmitHandler<ProducerProfile> = (data) => {
         setIsLoading(true);
-        // Simuler un appel API
+        // Simuler un appel API avec data
+        console.log("Saving data:", data);
         setTimeout(() => {
             alert("Profil mis à jour avec succès !");
             setIsLoading(false);
@@ -45,8 +52,8 @@ export default function SettingsPage() {
 
     // Simuler le changement de thème
     const toggleTheme = () => {
-        const newTheme = profile.theme === 'light' ? 'dark' : 'light';
-        setProfile(prev => ({ ...prev, theme: newTheme }));
+        const newTheme = theme === 'light' ? 'dark' : 'light';
+        setValue('theme', newTheme);
         // En réalité, vous appliqueriez ici la classe de thème au body/html
         alert(`Thème passé à : ${newTheme}`);
     };
@@ -75,42 +82,38 @@ export default function SettingsPage() {
 
                 {/* 2. SECTION PROFIL ET INFORMATIONS */}
                 <Section title="Informations du Compte" icon={FaUser}>
-                    <div className="space-y-4">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                         <InputGroup 
                             label="Nom du producteur/de la ferme" 
                             icon={FaUser} 
-                            value={profile.name} 
-                            onChange={(e) => setProfile(p => ({ ...p, name: e.target.value }))}
+                            {...register('name')}
                         />
                          <InputGroup 
                             label="Email" 
                             icon={FaEnvelope} 
-                            value={profile.email} 
-                            onChange={(e) => setProfile(p => ({ ...p, email: e.target.value }))}
                             type="email"
+                            {...register('email')}
                         />
                         <InputGroup 
                             label="Téléphone" 
                             icon={FaPhone} 
-                            value={profile.phone} 
-                            onChange={(e) => setProfile(p => ({ ...p, phone: e.target.value }))}
                             type="tel"
+                            {...register('phone')}
                         />
                         <InputGroup 
                             label="Adresse / Localisation" 
                             icon={FaMapMarkerAlt} 
-                            value={profile.location} 
-                            onChange={(e) => setProfile(p => ({ ...p, location: e.target.value }))}
+                            {...register('location')}
                         />
 
                         <button
-                            onClick={handleProfileUpdate}
+                            type="submit"
                             disabled={isLoading}
                             className="w-full py-3 bg-green-700 text-white font-bold rounded-xl shadow-md active:bg-green-800 transition-colors disabled:bg-gray-400"
                         >
                             {isLoading ? 'Sauvegarde en cours...' : 'Sauvegarder les modifications'}
                         </button>
-                    </div>
+                    </form>
                 </Section>
                 
                 {/* 3. SECTION SÉCURITÉ */}
@@ -126,7 +129,7 @@ export default function SettingsPage() {
                 <Section title="Affichage" icon={FaPalette}>
                     <div className="flex justify-between items-center py-3">
                         <span className="text-gray-700 font-medium">Mode Sombre (Dark Mode)</span>
-                        <ToggleSwitch checked={profile.theme === 'dark'} onChange={toggleTheme} />
+                        <ToggleSwitch checked={theme === 'dark'} onChange={toggleTheme} />
                     </div>
                 </Section>
 
@@ -184,27 +187,24 @@ const SettingItem: React.FC<SettingItemProps> = ({ label, onClick, icon: Icon, c
 );
 
 // Composant pour champ de formulaire simple
-type InputGroupProps = {
+interface InputGroupProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label: string;
     icon: React.ElementType;
-    value: string;
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    type?: string;
-};
+}
 
-const InputGroup: React.FC<InputGroupProps> = ({ label, icon: Icon, value, onChange, type = 'text' }) => (
+const InputGroup = React.forwardRef<HTMLInputElement, InputGroupProps>(({ label, icon: Icon, className, ...props }, ref) => (
     <div>
         <label className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-1">
             <Icon className="text-green-600" /> {label}
         </label>
         <input
-            type={type}
-            value={value}
-            onChange={onChange}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+            ref={ref}
+            className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500 ${className || ''}`}
+            {...props}
         />
     </div>
-);
+));
+InputGroup.displayName = 'InputGroup';
 
 // Composant pour l'interrupteur (Toggle Switch)
 type ToggleSwitchProps = {

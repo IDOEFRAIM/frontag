@@ -1,146 +1,178 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Category } from '@/services/catalogue.service';
+import { Map, Tag, RotateCcw } from 'lucide-react';
 
 const THEME = {
-    ocre: '#A63C06',
-    textMain: '#2D2D2D',
-    textSub: '#5D4037',
-    border: '#dcdcdc',
-    activeBg: '#FFF3E0', 
+    accent: '#E65100',
+    text: '#2D3436',
+    muted: '#7F8C8D',
+    surface: '#FFFFFF',
+    border: '#EEEAE5',
+    bgActive: '#FFF3E0',
+    hover: '#FDF7F2'
 };
 
-// Liste des régions (Les IDs doivent correspondre à ceux dans mockProducts.regionId)
 const REGIONS = [
-    { id: 'all', name: '🇧🇫 Tout le Burkina' },
-    { id: 'hauts-bassins', name: '📍 Hauts-Bassins (Bobo)' },
-    { id: 'centre', name: '📍 Centre (Ouaga)' },
-    { id: 'boucle-mouhoun', name: '📍 Boucle du Mouhoun' },
-    { id: 'nord', name: '📍 Nord (Ouahigouya)' },
+    { id: 'all', name: 'Réseau National' },
+    { id: 'hauts-bassins', name: 'Hauts-Bassins' },
+    { id: 'centre', name: 'Centre (Ouaga)' },
+    { id: 'boucle-mouhoun', name: 'Boucle du Mouhoun' },
+    { id: 'nord', name: 'Zone Nord' },
 ];
 
 interface UnifiedFilterProps {
     categories: Category[];
     activeCategory: string;
     activeRegion: string;
-    // Handler unifié pour gérer les deux types de filtre
     onFilterChange: (type: 'category' | 'region', value: string) => void; 
     onReset: () => void;
 }
 
+// Sous-composant mémoïsé pour la robustesse visuelle
+const SectionHeader = memo(({ title, icon: Icon }: { title: string, icon: any }) => (
+    <div style={{ 
+        fontSize: '0.7rem', fontWeight: '800', color: THEME.muted, 
+        textTransform: 'uppercase', letterSpacing: '1.2px', margin: '32px 0 12px 0',
+        display: 'flex', alignItems: 'center', gap: '8px'
+    }}>
+        <Icon size={14} strokeWidth={2.5} />
+        {title}
+        <div style={{ flex: 1, height: '1px', backgroundColor: THEME.border }}></div>
+    </div>
+));
+
 export default function UnifiedFilter({ 
-    categories, 
+    categories = [], 
     activeCategory, 
     activeRegion, 
-    onFilterChange,
+    onFilterChange, 
     onReset 
 }: UnifiedFilterProps) {
 
-    const SectionTitle = ({ title }: { title: string }) => (
-        <h4 style={{ 
-            fontSize: '0.85rem', 
-            fontWeight: '900', 
-            color: THEME.textSub,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            margin: '20px 0 10px 0',
-            borderBottom: `2px solid ${THEME.ocre}`,
-            display: 'inline-block',
-            paddingBottom: '3px'
-        }}>
-            {title}
-        </h4>
-    );
-
-    const FilterButton = ({ id, label, isActive, type }: { id: string, label: string, isActive: boolean, type: 'category' | 'region' }) => (
-        <button
-            onClick={() => onFilterChange(type, id)}
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                width: '100%',
-                padding: '8px 12px',
-                marginBottom: '4px',
-                backgroundColor: isActive ? THEME.activeBg : 'transparent',
-                border: '1px solid',
-                borderColor: isActive ? THEME.ocre : 'transparent',
-                borderRadius: '4px',
-                color: isActive ? THEME.ocre : THEME.textMain,
-                fontWeight: isActive ? 'bold' : 'normal',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.2s',
-                fontSize: '0.9rem'
-            }}
-        >
-            <span>{label}</span>
-            {isActive && <span style={{ fontSize: '1.2rem', lineHeight: 0 }}>•</span>}
-        </button>
-    );
+    const isFiltered = activeCategory !== 'all' || activeRegion !== 'all';
 
     return (
-        <div style={{ 
-            backgroundColor: 'white', 
+        <nav style={{ 
+            backgroundColor: THEME.surface, 
             border: `1px solid ${THEME.border}`, 
-            padding: '20px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
+            padding: '28px', 
+            borderRadius: '24px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.04)',
+            position: 'sticky', 
+            top: '40px',
+            width: '100%'
         }}>
-            {/* En-tête du panneau */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 'bold', fontFamily: 'Oswald, sans-serif' }}>
-                    ⚡️ TRI & ORIGINE
+            {/* Header du Panel */}
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '10px' 
+            }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '900', color: THEME.text, letterSpacing: '-0.5px' }}>
+                    Configuration
                 </h3>
-                {(activeCategory !== 'all' || activeRegion !== 'all') && (
+                {isFiltered && (
                     <button 
                         onClick={onReset}
-                        style={{ fontSize: '0.75rem', textDecoration: 'underline', color: THEME.textSub, border: 'none', background: 'none', cursor: 'pointer' }}
+                        style={{ 
+                            display: 'flex', alignItems: 'center', gap: '4px',
+                            fontSize: '0.7rem', color: THEME.accent, background: 'none', 
+                            border: `1.5px solid ${THEME.accent}`, padding: '6px 10px', 
+                            borderRadius: '8px', cursor: 'pointer', fontWeight: '800',
+                            transition: 'all 0.2s ease'
+                        }}
                     >
-                        Réinitialiser
+                        <RotateCcw size={12} /> RESET
                     </button>
                 )}
             </div>
 
-            {/* --- SECTION 1: CATÉGORIES --- */}
-            <SectionTitle title="📦 Type de Denrée" />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Section Catégories */}
+            <SectionHeader title="Ressources" icon={Tag} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <FilterButton 
-                    id="all" 
-                    label="Tous les produits" 
+                    label="Tous les flux" 
                     isActive={activeCategory === 'all'} 
-                    type="category" 
+                    onClick={() => onFilterChange('category', 'all')} 
                 />
-                {categories
-                    .filter(c => c.key !== 'all') // On filtre le "Toutes les catégories" du service
-                    .map((cat) => (
-                    <FilterButton 
-                        key={cat.key} 
-                        id={cat.key} 
-                        label={cat.name} 
-                        isActive={activeCategory === cat.key} 
-                        type="category" 
-                    />
-                ))}
+                {categories.length > 0 ? (
+                    categories.filter(c => c.key !== 'all').map((cat) => (
+                        <FilterButton 
+                            key={cat.key} 
+                            label={cat.name} 
+                            isActive={activeCategory === cat.key} 
+                            onClick={() => onFilterChange('category', cat.key)} 
+                        />
+                    ))
+                ) : (
+                    <div style={{ padding: '12px', color: THEME.muted, fontSize: '0.8rem', fontStyle: 'italic' }}>
+                        Chargement des flux...
+                    </div>
+                )}
             </div>
 
-            {/* --- SECTION 2: RÉGIONS --- */}
-            <SectionTitle title="🌍 Terroir / Origine" />
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {/* Section Régions */}
+            <SectionHeader title="Localisation" icon={Map} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {REGIONS.map((reg) => (
                     <FilterButton 
                         key={reg.id} 
-                        id={reg.id} 
                         label={reg.name} 
                         isActive={activeRegion === reg.id} 
-                        type="region" 
+                        onClick={() => onFilterChange('region', reg.id)} 
                     />
                 ))}
             </div>
 
-            <div style={{ marginTop: '20px', borderTop: '2px dashed #ddd', paddingTop: '10px', textAlign: 'center', fontSize: '0.7rem', color: '#999' }}>
-                AGRICONNECT LOGISTICS
+            {/* Badge de Statut (Scalabilité) */}
+            <div style={{ 
+                marginTop: '32px', padding: '16px', borderRadius: '16px', 
+                backgroundColor: '#F9FAFB', border: `1px solid ${THEME.border}`,
+                display: 'flex', flexDirection: 'column', gap: '8px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.7rem', fontWeight: '700', color: '#10B981' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                    DONNÉES TEMPS RÉEL
+                </div>
+                <p style={{ margin: 0, fontSize: '0.7rem', color: THEME.muted, lineHeight: '1.4' }}>
+                    Fréquence de rafraîchissement des stocks : <span style={{ color: THEME.text, fontWeight: '600' }}>15 min</span>
+                </p>
             </div>
-        </div>
+        </nav>
+    );
+}
+
+// Composant interne pour la gestion des boutons
+function FilterButton({ label, isActive, onClick }: { label: string, isActive: boolean, onClick: () => void }) {
+    return (
+        <button
+            onClick={onClick}
+            style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                width: '100%', padding: '12px 16px',
+                backgroundColor: isActive ? THEME.bgActive : 'transparent',
+                border: 'none', borderRadius: '12px',
+                color: isActive ? THEME.accent : THEME.text,
+                cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                fontSize: '0.9rem', fontWeight: isActive ? '750' : '500'
+            }}
+            onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.backgroundColor = THEME.hover;
+            }}
+            onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
+            }}
+        >
+            {label}
+            {isActive && (
+                <div style={{ 
+                    width: '6px', height: '6px', borderRadius: '50%', 
+                    backgroundColor: THEME.accent, boxShadow: `0 0 8px ${THEME.accent}` 
+                }} />
+            )}
+        </button>
     );
 }
