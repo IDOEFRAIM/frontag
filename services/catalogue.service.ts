@@ -22,7 +22,53 @@ const getBaseUrl = () => {
 };
 
 export const getCategories = async (): Promise<Category[]> => {
+    try {
+        const res = await fetch(`${getBaseUrl()}/api/publicProduct/filters`, { next: { revalidate: 300 } });
+        if (res.ok) {
+            const data = await res.json();
+            const dbCategories: string[] = data.categories || [];
+            
+            // Mapper les catégories DB avec les icônes si possible, sinon icône par défaut
+            const mappedCategories = dbCategories.map(catLabel => {
+                // Essayer de trouver une config existante pour l'icône (très basique)
+                const existing = CATEGORIES_CONFIG.find(c => 
+                    c.name.toLowerCase() === catLabel.toLowerCase() || 
+                    catLabel.toLowerCase().includes(c.key)
+                );
+                return {
+                    key: catLabel, // On utilise le label comme key pour le filtre API exact
+                    name: catLabel,
+                    icon: existing?.icon || '📦'
+                };
+            });
+
+            return [{ key: 'all', name: 'Toutes les Catégories', icon: '🌍' }, ...mappedCategories];
+        }
+    } catch (e) {
+        console.error("Failed to fetch real categories", e);
+    }
+    // Fallback
     return [{ key: 'all', name: 'Toutes les Catégories', icon: '🌍' }, ...CATEGORIES_CONFIG];
+};
+
+export const getRegions = async (): Promise<{ id: string, name: string }[]> => {
+    try {
+        const res = await fetch(`${getBaseUrl()}/api/publicProduct/filters`, { next: { revalidate: 300 } });
+        if (res.ok) {
+            const data = await res.json();
+            const dbRegions: string[] = data.regions || [];
+            
+            const mappedRegions = dbRegions.map(reg => ({
+                id: reg, // Le nom exact sert d'ID pour le filtre
+                name: reg
+            }));
+
+            return [{ id: 'all', name: 'Réseau National' }, ...mappedRegions];
+        }
+    } catch (e) {
+        console.error("Failed to fetch real regions", e);
+    }
+    return [{ id: 'all', name: 'Réseau National' }];
 };
 
 /**

@@ -28,6 +28,19 @@ export default function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProp
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const streamRef = useRef<MediaStream | null>(null); // Référence au flux global
     const chunksRef = useRef<Blob[]>([]);
+    const isMounted = useRef(true);
+
+    // Initialisation et nettoyage du montage
+    useEffect(() => {
+        isMounted.current = true;
+        return () => {
+            isMounted.current = false;
+            // Si on quitte le composant pendant l'enregistrement, on arrête proprement pour sauvegarder
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
+                mediaRecorderRef.current.stop();
+            }
+        };
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -55,9 +68,15 @@ export default function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProp
 
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-                const url = URL.createObjectURL(blob);
-                setAudioURL(url);
+                
+                // On notifie le parent TOUJOURS (même si démonté, pour sauvegarder)
                 onRecordingComplete(blob);
+
+                // Mises à jour d'état sculement si monté
+                if (isMounted.current) {
+                    const url = URL.createObjectURL(blob);
+                    setAudioURL(url);
+                }
                 
                 // Couper le micro PHYSIQUEMENT
                 if (streamRef.current) {
@@ -66,7 +85,7 @@ export default function VoiceRecorder({ onRecordingComplete }: VoiceRecorderProp
                 }
 
                 // Fermer le contexte audio visuel
-                if (audioContext) {
+                if (audioContext && audioContext.state !== 'closed') {
                    audioContext.suspend();
                 }
             };

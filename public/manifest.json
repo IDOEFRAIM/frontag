@@ -1,6 +1,6 @@
 {
-  "name": "AgriConnect Burkina",
-  "short_name": "AgriConnect",
+  "name": "FrontAg Burkina",
+  "short_name": "FrontAg",
   "description": "Commerce agricole résilient et hors-ligne pour le Sahel.",
   "start_url": "/",
   "display": "standalone",

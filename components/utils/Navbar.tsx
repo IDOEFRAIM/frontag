@@ -43,7 +43,7 @@ export default function Navbar() {
     const getUserDashboardPath = () => {
         switch (userRole?.toUpperCase()) {
             case 'ADMIN': return '/admin';
-            case 'PRODUCER': return '/productor/dashboard';
+            case 'PRODUCER': return '/productor';
             case 'USER': return '/market'; // Redirection vers l'espace acheteur
             default: return '/login';
         }
@@ -60,7 +60,7 @@ export default function Navbar() {
                             <FaLeaf size={20} />
                         </div>
                         <span className="font-black text-xl text-gray-800 tracking-tight">
-                            Agri<span className="text-green-600">Connect</span>
+                            Front<span className="text-green-600">Ag</span>
                         </span>
                     </Link>
 

@@ -210,9 +210,26 @@ model Product {
 
 model Order {
   id            String    @id @default(cuid())
-  buyerId       String
-  buyer         User      @relation(fields: [buyerId], references: [id])
   
+  // Acheteur (Optionnel pour permettre les commandes invitées)
+  buyerId       String?
+  buyer         User?     @relation(fields: [buyerId], references: [id])
+
+  // Infos Client & Livraison (Pour Guest Checkout)
+  customerName  String?
+  customerPhone String?
+  
+  paymentMethod String    @default("cash")
+  
+  // Localisation
+  city          String?
+  gpsLat        Float?
+  gpsLng        Float?
+  deliveryDesc  String?
+  
+  // Fichiers
+  audioUrl      String?
+
   status        OrderStatus @default(PENDING)
   source        OrderSource @default(APP)
   

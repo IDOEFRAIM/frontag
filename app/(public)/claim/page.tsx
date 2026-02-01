@@ -232,7 +232,7 @@ export default function ClaimPage() {
                     </div>
 
                     <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '24px', border: `1px solid ${THEME.border}` }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: '900', marginBottom: '20px' }}>Garanties AgriConnect</h3>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: '900', marginBottom: '20px' }}>Garanties FrontAg</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                             <Commitment icon={<RefreshCcw size={18} />} text="Remplacement sans frais sur votre prochaine commande." />
                             <Commitment icon={<ShieldCheck size={18} />} text="Remboursement garanti si le produit est avarié." />

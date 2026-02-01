@@ -14,16 +14,9 @@ const THEME = {
     hover: '#FDF7F2'
 };
 
-const REGIONS = [
-    { id: 'all', name: 'Réseau National' },
-    { id: 'hauts-bassins', name: 'Hauts-Bassins' },
-    { id: 'centre', name: 'Centre (Ouaga)' },
-    { id: 'boucle-mouhoun', name: 'Boucle du Mouhoun' },
-    { id: 'nord', name: 'Zone Nord' },
-];
-
 interface UnifiedFilterProps {
     categories: Category[];
+    regions: { id: string, name: string }[];
     activeCategory: string;
     activeRegion: string;
     onFilterChange: (type: 'category' | 'region', value: string) => void; 
@@ -45,6 +38,7 @@ const SectionHeader = memo(({ title, icon: Icon }: { title: string, icon: any })
 
 export default function UnifiedFilter({ 
     categories = [], 
+    regions = [],
     activeCategory, 
     activeRegion, 
     onFilterChange, 
@@ -93,15 +87,11 @@ export default function UnifiedFilter({
             {/* Section Catégories */}
             <SectionHeader title="Ressources" icon={Tag} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <FilterButton 
-                    label="Tous les flux" 
-                    isActive={activeCategory === 'all'} 
-                    onClick={() => onFilterChange('category', 'all')} 
-                />
                 {categories.length > 0 ? (
-                    categories.filter(c => c.key !== 'all').map((cat) => (
+                    categories.map((cat) => (
                         <FilterButton 
                             key={cat.key} 
+                            icon={cat.icon}
                             label={cat.name} 
                             isActive={activeCategory === cat.key} 
                             onClick={() => onFilterChange('category', cat.key)} 
@@ -117,17 +107,23 @@ export default function UnifiedFilter({
             {/* Section Régions */}
             <SectionHeader title="Localisation" icon={Map} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {REGIONS.map((reg) => (
-                    <FilterButton 
-                        key={reg.id} 
-                        label={reg.name} 
-                        isActive={activeRegion === reg.id} 
-                        onClick={() => onFilterChange('region', reg.id)} 
-                    />
-                ))}
+                {regions.length > 0 ? (
+                    regions.map((reg) => (
+                        <FilterButton 
+                            key={reg.id} 
+                            label={reg.name} 
+                            isActive={activeRegion === reg.id} 
+                            onClick={() => onFilterChange('region', reg.id)} 
+                        />
+                    ))
+                ) : (
+                    <div style={{ padding: '12px', color: THEME.muted, fontSize: '0.8rem', fontStyle: 'italic' }}>
+                        Chargement des zones...
+                    </div>
+                )}
             </div>
 
-            {/* Badge de Statut (Scalabilité) */}
+            {/* Badge de Statut */}
             <div style={{ 
                 marginTop: '32px', padding: '16px', borderRadius: '16px', 
                 backgroundColor: '#F9FAFB', border: `1px solid ${THEME.border}`,
@@ -146,7 +142,7 @@ export default function UnifiedFilter({
 }
 
 // Composant interne pour la gestion des boutons
-function FilterButton({ label, isActive, onClick }: { label: string, isActive: boolean, onClick: () => void }) {
+function FilterButton({ label, icon, isActive, onClick }: { label: string, icon?: string | null | undefined, isActive: boolean, onClick: () => void }) {
     return (
         <button
             onClick={onClick}
@@ -157,7 +153,8 @@ function FilterButton({ label, isActive, onClick }: { label: string, isActive: b
                 border: 'none', borderRadius: '12px',
                 color: isActive ? THEME.accent : THEME.text,
                 cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                fontSize: '0.9rem', fontWeight: isActive ? '750' : '500'
+                fontSize: '0.9rem', fontWeight: isActive ? '750' : '500',
+                textAlign: 'left'
             }}
             onMouseEnter={(e) => {
                 if (!isActive) e.currentTarget.style.backgroundColor = THEME.hover;
@@ -166,7 +163,10 @@ function FilterButton({ label, isActive, onClick }: { label: string, isActive: b
                 if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
             }}
         >
-            {label}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {icon && <span>{icon}</span>}
+                {label}
+            </span>
             {isActive && (
                 <div style={{ 
                     width: '6px', height: '6px', borderRadius: '50%', 

@@ -8,6 +8,7 @@ import { Product } from '@/types/market';
 
 interface ProductCardProps {
     product: Product;
+    viewMode?: 'grid' | 'list';
 }
 
 const THEME = {
@@ -18,8 +19,8 @@ const THEME = {
     border: '#EEEAE5',    // Beige clair
 };
 
-export default function ProductCard({ product }: ProductCardProps) {
-    const isOutOfStock = product.stock <= 0;
+export default function ProductCard({ product, viewMode = 'grid' }: ProductCardProps) {
+    const isOutOfStock = product.quantity <= 0;
     
     return (
         <motion.div
@@ -56,7 +57,7 @@ export default function ProductCard({ product }: ProductCardProps) {
                     {/* Image Section */}
                     <div style={{ height: '220px', position: 'relative', overflow: 'hidden', backgroundColor: '#F1F2F6' }}>
                         <img 
-                            src={`/uploads/products/${product.images?.[0]}` || '/placeholder.jpg'} 
+                            src={product.images && product.images.length > 0 ? `/uploads/products/${product.images[0]}` : '/placeholder.jpg'} 
                             alt={product?.name || 'Product picture'}
                             style={{ 
                                 width: '100%', 

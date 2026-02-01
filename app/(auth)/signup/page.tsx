@@ -55,7 +55,7 @@ export default function SignupPage() {
         if (!isLoading && isAuthenticated) {
             const r = userRole?.toUpperCase();
             if (r === 'ADMIN') router.replace('/admin');
-            else if (r === 'PRODUCER') router.replace('/productor/dashboard');
+            else if (r === 'PRODUCER') router.replace('/dashboard');
             else router.replace('/market');
         }
     }, [isAuthenticated, isLoading, userRole, router]);
@@ -95,7 +95,7 @@ export default function SignupPage() {
                 
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-black text-green-700 flex items-center justify-center gap-2">
-                        <FaSeedling className="text-green-500" /> AgriConnect
+                        <FaSeedling className="text-green-500" /> FrontAg
                     </h1>
                     <p className="text-gray-500 mt-2 font-medium">Rejoignez la révolution agricole</p>
                 </div>

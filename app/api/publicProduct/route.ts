@@ -5,47 +5,51 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         
-        // Extraction des filtres depuis l'URL
         const category = searchParams.get('category');
         const region = searchParams.get('region');
         const search = searchParams.get('search');
 
-        // Construction dynamique de la clause WHERE pour Prisma
-        const where: any = {
-            status: 'active', // On ne montre que les produits actifs au public
-        };
+        const where: any = {};
 
+        // Filtre Category
         if (category && category !== 'all') {
-            where.category = category;
+             where.categoryLabel = {
+                contains: category, 
+                mode: 'insensitive'
+             };
         }
 
+        // Filtre Region
         if (region && region !== 'all') {
-            // On filtre sur la localisation du producteur lié
             where.producer = {
-                location: {
+                region: {
                     contains: region,
                     mode: 'insensitive',
                 },
             };
         }
 
+        // Recherche
         if (search) {
             where.OR = [
                 { categoryLabel: { contains: search, mode: 'insensitive' } },
-                // Tu pourrais ajouter ici un champ 'description' si présent dans ton Prisma
+                { name: { contains: search, mode: 'insensitive' } },
             ];
         }
 
-        // Exécution de la requête avec jointure Producer
+        // Execution de la requete
         const products = await prisma.product.findMany({
             where,
             include: {
                 producer: {
-                    select: {
-                        name: true,
-                        location: true,
-                        phone: true,
-                    },
+                    include: {
+                        user: {
+                            select: {
+                                name: true,
+                                phone: true,
+                            }
+                        }
+                    }
                 },
             },
             orderBy: {
@@ -53,7 +57,31 @@ export async function GET(request: Request) {
             },
         });
 
-        return NextResponse.json(products);
+        // Mapping Data
+        const formattedProducts = products.map(p => ({
+            id: p.id,
+            name: p.name,
+            category: p.categoryLabel, 
+            categoryLabel: p.categoryLabel,
+            price: p.price,
+            unit: p.unit,
+            quantity: p.quantityForSale,
+            images: p.images,
+            location: { 
+                address: [p.producer.commune, p.producer.region].filter(Boolean).join(', ') || 'Localisation inconnue',
+                latitude: 0,
+                longitude: 0 // Placeholder
+            },
+            producer: {
+                name: p.producer.businessName || p.producer.user.name || "Producteur",
+                phone: p.producer.user.phone,
+            },
+            stock: p.quantityForSale,
+            status: p.quantityForSale > 0 ? 'active' : 'sold_out',
+            createdAt: p.createdAt
+        }));
+
+        return NextResponse.json(formattedProducts);
     } catch (error) {
         console.error("[API_PUBLIC_PRODUCTS_ERROR]:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

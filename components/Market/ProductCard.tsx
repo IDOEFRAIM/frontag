@@ -13,7 +13,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     const router = useRouter();
 
     const handleViewProduct = () => {
-        router.push(`/product/${product.id}`);
+        router.push(`/publicProducts/${product.id}`);
     };
 
     const isLowStock = product.stock < 100;

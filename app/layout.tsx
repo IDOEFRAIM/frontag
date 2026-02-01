@@ -19,13 +19,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'AgriConnect',
+  title: 'FrontAg',
   description: 'Application de commerce local',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'AgriConnect',
+    title: 'FrontAg',
   },
 };
 

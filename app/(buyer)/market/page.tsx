@@ -95,7 +95,7 @@ export default function MarketPage() {
             {/* Contenu Principal du Marché */}
             <main className="flex-1 p-4 md:p-8">
                 <header className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">🛒 Le Marché AgriConnect</h1>
+                    <h1 className="text-3xl font-bold text-gray-800">🛒 Le Marché FrontAg</h1>
                     <p className="text-gray-500 mt-2">
                         <span className="font-bold text-green-600">{filteredProducts.length}</span> produits disponibles 
                         {currentFilters.category && ` dans la catégorie ${currentFilters.category}`}

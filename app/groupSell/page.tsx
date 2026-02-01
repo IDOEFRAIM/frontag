@@ -11,7 +11,7 @@ interface Deal {
   organizer: {
     name: string;
     avatar: string; // URL image
-    role: string;   // ex: "Ambassadeur AgriConnect"
+    role: string;   // ex: "Ambassadeur FrontAg"
   };
   productImage: string;
   target: number;

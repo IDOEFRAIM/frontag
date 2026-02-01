@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FaChartLine, FaArrowUp, FaArrowDown, FaInfoCircle, FaBalanceScale } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaBalanceScale } from 'react-icons/fa';
 
 interface ArbitrageProps {
     activeUnit: string;
@@ -19,85 +19,67 @@ export default function MarketArbitrage({ activeUnit }: ArbitrageProps) {
     const data = MARKET_DATA[activeUnit] || MARKET_DATA['global'];
 
     return (
-        <section className="bg-white p-10 rounded-[3.5rem] shadow-xl shadow-slate-200/50 border border-white">
+        <section className="bg-white p-6 rounded-3xl shadow-sm border border-[#e0e0d1]">
             
             {/* EN-TÊTE */}
-            <div className="flex justify-between items-start mb-10">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                        <FaBalanceScale size={20} />
+            <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#e6f4ea] rounded-xl flex items-center justify-center text-[#497a3a]">
+                        <FaBalanceScale size={18} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter text-left">Arbitrage.</h2>
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest text-left">Marché vs Stock</p>
+                        <h2 className="text-lg font-bold text-[#5b4636]">Prix du Marché</h2>
+                        <p className="text-xs text-[#7c795d]">Comparaison en temps réel</p>
                     </div>
-                </div>
-                <div className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-tighter italic">
-                    Live Data
                 </div>
             </div>
 
             {activeUnit === 'global' ? (
                 /* VUE GLOBALE - TRENDS */
-                <div className="space-y-6">
-                    <div className="p-8 bg-indigo-50 rounded-[2.5rem] border border-indigo-100">
-                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Tendance Générale</p>
-                        <div className="flex items-center gap-4">
-                            <span className="text-5xl font-black text-indigo-900 italic tracking-tighter">{data.diff}</span>
-                            <FaArrowUp className="text-indigo-600 animate-bounce" size={24} />
+                <div className="space-y-4">
+                    <div className="p-6 bg-[#f7f5ee] rounded-2xl border border-[#e0e0d1]">
+                        <p className="text-xs font-bold text-[#7c795d] uppercase tracking-wider mb-2">Tendance Générale</p>
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl font-black text-[#497a3a]">{data.diff}</span>
+                            <FaArrowUp className="text-[#497a3a]" size={20} />
                         </div>
-                        <p className="mt-4 text-[11px] font-bold text-indigo-900 uppercase italic leading-relaxed">
+                        <p className="mt-3 text-sm font-medium text-[#5b4636]">
                             {data.advice}
                         </p>
                     </div>
                 </div>
             ) : (
-                /* VUE SPÉCIFIQUE - COMPARAISON DE PRIX */
-                <div className="space-y-8">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="p-6 bg-slate-50 rounded-[2rem]">
-                            <p className="text-[9px] font-black text-slate-400 uppercase mb-2">Ton Prix</p>
-                            <p className="text-3xl font-black text-slate-900 italic tracking-tighter">{data.internal} F</p>
+                /* VUE SPÉCIFIQUE (Maïs, Tomate...) */
+                <div className="space-y-4">
+                    
+                    {/* Carte Principale de Prix */}
+                    <div className="p-5 bg-white rounded-2xl border border-[#e0e0d1] shadow-sm">
+                        <div className="flex justify-between items-end mb-2">
+                            <p className="text-xs text-[#7c795d]">Prix marché actuel</p>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-lg ${data.trend === 'up' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {data.trend === 'up' ? '▲ Hausse' : '▼ Baisse'}
+                            </span>
                         </div>
-                        <div className="p-6 bg-green-50 rounded-[2rem] border border-green-100">
-                            <p className="text-[9px] font-black text-green-600 uppercase mb-2">Marché</p>
-                            <p className="text-3xl font-black text-green-600 italic tracking-tighter">{data.market} F</p>
-                        </div>
-                    </div>
-
-                    {/* GAP ANALYSIS */}
-                    <div className="flex items-center justify-between px-2">
-                        <div className="flex items-center gap-3">
-                            {data.trend === 'up' ? 
-                                <FaArrowUp className="text-green-500" /> : 
-                                <FaArrowDown className="text-red-500" />
-                            }
-                            <p className="text-sm font-black text-slate-900 uppercase italic tracking-tight">
-                                {data.trend === 'up' ? 'Écart Positif' : 'Écart Négatif'}
-                            </p>
-                        </div>
-                        <p className="text-xl font-black text-slate-900 italic">
-                            {Math.abs(data.market - data.internal)} F <span className="text-[10px] text-slate-300 not-italic">/ kg</span>
+                        <p className="text-3xl font-black text-[#5b4636]">
+                            {data.market} <span className="text-sm font-normal text-[#7c795d]">F/kg</span>
                         </p>
+                        <div className="mt-4 pt-4 border-t border-dashed border-[#e0e0d1] flex justify-between items-center text-xs">
+                            <span className="text-[#7c795d]">Votre seuil rentabilité:</span>
+                            <span className="font-bold text-[#5b4636]">{data.internal} F/kg</span>
+                        </div>
                     </div>
 
-                    {/* STRATÉGIE CONSEILLÉE */}
-                    <div className="bg-slate-900 p-6 rounded-[2rem] flex items-start gap-4">
-                        <FaInfoCircle className="text-indigo-400 mt-1" size={16} />
-                        <div>
-                            <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Stratégie Vital</p>
-                            <p className="text-xs font-black text-white uppercase italic leading-tight tracking-wide">
-                                {data.advice}
-                            </p>
+                    {/* Conseil Tactique */}
+                    <div className="flex items-start gap-3 p-4 bg-[#e65100]/10 rounded-xl border border-[#e65100]/20">
+                        <div className="mt-0.5 text-[#e65100]">
+                            <FaArrowUp size={14} />
                         </div>
+                        <p className="text-xs font-medium text-[#e65100] leading-snug">
+                            {data.advice}
+                        </p>
                     </div>
                 </div>
             )}
-
-            {/* PETITE LÉGENDE */}
-            <p className="mt-8 text-[8px] font-bold text-slate-300 uppercase text-center tracking-widest">
-                Source : {data.marketName} • Mis à jour il y a 12min
-            </p>
         </section>
     );
 }

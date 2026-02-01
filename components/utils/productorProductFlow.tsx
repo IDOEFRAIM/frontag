@@ -353,6 +353,19 @@ export default function ProductFlow({ mode, initialData }: ProductFlowProps) {
                         </div>
                     </div>
 
+                    {/* INDICATEUR AUDIO */}
+                    {audioBlob && (
+                        <div className="flex items-center gap-3 mb-8 p-4 bg-green-50 rounded-2xl border border-green-100 animate-in slide-in-from-left-5">
+                             <div className="w-10 h-10 bg-green-200 text-green-700 rounded-full flex items-center justify-center shadow-sm">
+                                 <FaMicrophone size={16} />
+                             </div>
+                             <div>
+                                <p className="text-[9px] font-black text-green-800 uppercase tracking-widest">Note Vocale</p>
+                                <p className="text-xs font-bold text-green-700">Enregistrement prêt à l'envoi</p>
+                             </div>
+                        </div>
+                    )}
+
                     <button 
                         onClick={handleSubmit(onSubmit)} 
                         disabled={isSubmitting}

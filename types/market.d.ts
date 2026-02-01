@@ -14,6 +14,7 @@ export type ProductCategory = 'cereales' | 'legumes' | 'animaux' | 'transforme' 
 export interface Product {
     id: string; 
     producerId: string;
+    name: string; // Nom du produit (ex: "Maïs blanc")
     category: ProductCategory;
     categoryLabel: string; // Ex: 'Céréales & Grains'
     unit: string; // 'KG', 'SAC', 'TONNE', 'UNITÉ'
@@ -23,6 +24,12 @@ export interface Product {
     audioUrl?: string; 
     status: string; // 'active', 'sold_out', 'pending'
     
+    location?: {
+        address: string;
+        latitude?: number;
+        longitude?: number;
+    };
+
     // Jointure avec le producteur pour la localisation et le nom
     producer?: {
         name: string;

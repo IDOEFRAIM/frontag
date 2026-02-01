@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 
+// Forced Rebuild 2024-02-01
 const runtimeCaching = [
   // ... tes stratégies de cache (gardées identiques)
   {

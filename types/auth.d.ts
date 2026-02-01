@@ -12,7 +12,7 @@ export interface Location {
 }
 
 /**
- * Interface complète pour un utilisateur AgriConnect.
+ * Interface complète pour un utilisateur FrontAg.
  */
 export interface User {
     id: string; // Utilisé comme _id MongoDB ou UUID PostgreSQL

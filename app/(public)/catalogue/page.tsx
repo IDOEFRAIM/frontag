@@ -6,7 +6,8 @@ import { Database, LayoutGrid, List, RefreshCw, Search } from 'lucide-react';
 
 // Imports de tes services et types
 import { Product } from '@/types/catalogue';
-import { getProducts, getCategories, Category } from '@/services/catalogue.service'; 
+import { Product as MarketProduct } from '@/types/market';
+import { getProducts, getCategories, getRegions, Category } from '@/services/catalogue.service'; 
 import ProductCard from './ProductCard';
 import UnifiedFilter from './filter';
 
@@ -24,6 +25,7 @@ export default function CataloguePage() {
     // --- ÉTATS ---
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
+    const [regions, setRegions] = useState<{id: string, name: string}[]>([]);
     const [currentCategory, setCurrentCategory] = useState<string>('all');
     const [currentRegion, setCurrentRegion] = useState<string>('all'); 
     const [searchQuery, setSearchQuery] = useState<string>('');
@@ -53,11 +55,15 @@ export default function CataloguePage() {
         }
     }, []);
 
-    // Initialisation : Charger les catégories une seule fois
+    // Initialisation : Charger les catégories et régions
     useEffect(() => {
         const init = async () => {
-            const cats = await getCategories();
+            const [cats, regs] = await Promise.all([
+                getCategories(),
+                getRegions()
+            ]);
             setCategories(cats);
+            setRegions(regs);
         };
         init();
     }, []);
@@ -123,6 +129,7 @@ export default function CataloguePage() {
                 <aside>
                     <UnifiedFilter 
                         categories={categories} 
+                        regions={regions}
                         activeCategory={currentCategory} 
                         activeRegion={currentRegion} 
                         onFilterChange={handleFilterChange} 
@@ -174,7 +181,11 @@ export default function CataloguePage() {
                         >
                             <AnimatePresence mode="popLayout">
                                 {products.map(product => (
-                                    <ProductCard key={product.id} product={product} viewMode={viewMode} />
+                                    <ProductCard 
+                                        key={product.id} 
+                                        product={product as unknown as MarketProduct} 
+                                        viewMode={viewMode} 
+                                    />
                                 ))}
                             </AnimatePresence>
                         </motion.div>
